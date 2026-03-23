@@ -21,6 +21,7 @@ module PumaRelease
         retarget_draft_release_tag_if_needed(tag)
         git_repo.ensure_release_tag_pushed!(tag)
         sync_release_target_to_head(tag)
+        sync_release_title(tag, version)
         context.ui.info("Building MRI gem...")
         context.shell.run("bundle", "exec", "rake", "build")
         context.ui.info("Built: pkg/puma-#{version}.gem")
@@ -57,6 +58,17 @@ module PumaRelease
 
         context.ui.info("Updating release target for #{tag} to #{head_sha[0, 12]}...")
         github.edit_release_target(tag, head_sha)
+      end
+
+      def sync_release_title(tag, version)
+        release = github.release(tag)
+        return unless release
+
+        title = repo_files.release_name(version)
+        return if release.fetch("name", "") == title
+
+        context.ui.info("Updating release title for #{tag} to #{title.inspect}...")
+        github.edit_release_title(tag, title)
       end
 
       def manual_jruby_instructions

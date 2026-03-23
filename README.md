@@ -8,7 +8,8 @@ It follows `Release.md` in `puma/puma`:
 
 1. `prepare` checks out a clean `main`, verifies CI, recommends the next version,
    updates `History.md` and `lib/puma/const.rb`, opens a release PR, and creates a
-   draft GitHub release.
+   draft GitHub release. For `x.y.0` releases, the release title includes the
+   codename, e.g. `v7.3.0 - INSERT CODENAME HERE`.
 2. `build` tags the merged release, builds the gem artifacts, and stops before the
    manual `gem push` step.
 3. `github` publishes the GitHub release and uploads the built gems.

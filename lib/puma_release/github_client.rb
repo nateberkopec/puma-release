@@ -62,12 +62,12 @@ module PumaRelease
     end
 
     def release(tag)
-      json("gh", "release", "view", tag, "--repo", context.release_repo, "--json", "tagName,isDraft,body,url,assets,targetCommitish")
+      json("gh", "release", "view", tag, "--repo", context.release_repo, "--json", "tagName,name,isDraft,body,url,assets,targetCommitish")
     end
 
-    def create_release(tag, body, draft: true, target: nil)
+    def create_release(tag, body, title: tag, draft: true, target: nil)
       with_notes_file(body) do |path|
-        command = ["gh", "release", "create", tag, "--repo", context.release_repo, "--title", tag, "--notes-file", path]
+        command = ["gh", "release", "create", tag, "--repo", context.release_repo, "--title", title, "--notes-file", path]
         command += ["--target", target] if target
         command << "--draft" if draft
         context.shell.run(*command)
@@ -82,6 +82,11 @@ module PumaRelease
 
     def edit_release_target(tag, target)
       context.shell.run("gh", "release", "edit", tag, "--repo", context.release_repo, "--target", target)
+      release(tag)
+    end
+
+    def edit_release_title(tag, title)
+      context.shell.run("gh", "release", "edit", tag, "--repo", context.release_repo, "--title", title)
       release(tag)
     end
 

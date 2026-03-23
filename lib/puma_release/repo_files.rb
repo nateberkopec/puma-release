@@ -14,6 +14,16 @@ module PumaRelease
       content[/PUMA_VERSION = VERSION = "([^"]+)"/, 1] || raise(Error, "Could not read current version")
     end
 
+    def current_code_name
+      content[/CODE_NAME = "([^"]+)"/, 1] || raise(Error, "Could not read current code name")
+    end
+
+    def release_name(version)
+      return "v#{version}" unless codename_applicable?(version)
+
+      "v#{version} - #{current_code_name}"
+    end
+
     def update_version!(new_version, bump_type)
       updated = content.sub(/PUMA_VERSION = VERSION = ".*"/, "PUMA_VERSION = VERSION = \"#{new_version}\"")
       updated = updated.sub(/CODE_NAME = ".*"/, 'CODE_NAME = "INSERT CODENAME HERE"') unless bump_type == "patch"
@@ -49,6 +59,10 @@ module PumaRelease
     end
 
     private
+
+    def codename_applicable?(version)
+      version.split(".").last == "0"
+    end
 
     def content
       context.version_file.read

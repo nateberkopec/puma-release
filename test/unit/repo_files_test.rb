@@ -27,6 +27,26 @@ class RepoFilesTest < Minitest::Test
     end
   end
 
+  def test_release_name_includes_codename_for_dot_zero_releases
+    temp_repo do |repo|
+      repo.join("lib/puma/const.rb").write("PUMA_VERSION = VERSION = \"7.3.0\"\nCODE_NAME = \"Shiny New Codename\"\n")
+      repo.join("History.md").write("")
+      context = OpenStruct.new(version_file: repo.join("lib/puma/const.rb"), history_file: repo.join("History.md"))
+
+      assert_equal "v7.3.0 - Shiny New Codename", PumaRelease::RepoFiles.new(context).release_name("7.3.0")
+    end
+  end
+
+  def test_release_name_omits_codename_for_patch_releases
+    temp_repo do |repo|
+      repo.join("lib/puma/const.rb").write("PUMA_VERSION = VERSION = \"7.3.1\"\nCODE_NAME = \"Shiny New Codename\"\n")
+      repo.join("History.md").write("")
+      context = OpenStruct.new(version_file: repo.join("lib/puma/const.rb"), history_file: repo.join("History.md"))
+
+      assert_equal "v7.3.1", PumaRelease::RepoFiles.new(context).release_name("7.3.1")
+    end
+  end
+
   def test_prepend_history_section_inserts_new_entry_and_refs
     temp_repo do |repo|
       repo.join("lib/puma/const.rb").write("PUMA_VERSION = VERSION = \"7.2.0\"\n")

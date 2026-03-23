@@ -79,8 +79,10 @@ module PumaRelease
       def ensure_draft_release(version, branch)
         tag = git_repo.release_tag(version)
         body = release_body(version)
+        title = repo_files.release_name(version)
         release = github.release(tag)
-        release ||= github.create_release(tag, body, draft: true, target: branch)
+        release ||= github.create_release(tag, body, title:, draft: true, target: branch)
+        release = github.edit_release_title(tag, title) if release.fetch("name", "") != title
         release.fetch("body", "") == body ? release : github.edit_release_notes(tag, body)
       end
 
