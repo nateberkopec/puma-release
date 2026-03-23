@@ -1,0 +1,43 @@
+# frozen_string_literal: true
+
+module PumaRelease
+  module Commands
+    class Run
+      attr_reader :context
+
+      def initialize(context)
+        @context = context
+      end
+
+      def call
+        step = StageDetector.new(context).next_step
+        return wait_for_merge if step == :wait_for_merge
+        return run_step(step) if confirm_step(step)
+
+        :aborted
+      end
+
+      private
+
+      def confirm_step(step)
+        return true if context.yes?
+
+        context.ui.confirm("Detected next step: #{step}. Continue?")
+      end
+
+      def run_step(step)
+        case step
+        when :prepare then Prepare.new(context).call
+        when :build then Build.new(context).call
+        when :github then Github.new(context).call
+        else raise Error, "Unknown step: #{step}"
+        end
+      end
+
+      def wait_for_merge
+        context.ui.info("A release PR is already in flight. Merge it, update local main, and rerun puma-release.")
+        :wait_for_merge
+      end
+    end
+  end
+end

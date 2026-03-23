@@ -1,0 +1,58 @@
+# frozen_string_literal: true
+
+module PumaRelease
+  class BuildSupport
+    attr_reader :context
+
+    def initialize(context)
+      @context = context
+    end
+
+    def build_jruby_gem(version)
+      return run_override(version) unless override.to_s.empty?
+      return build_with_mise(version) if context.shell.available?("mise")
+      return build_with_local_jruby(version) if context.shell.available?("jruby")
+
+      false
+    end
+
+    private
+
+    def build_with_mise(version)
+      jruby_version = latest_jruby_version
+      return build_with_local_jruby(version) if jruby_version.nil? && context.shell.available?("jruby")
+      return false if jruby_version.nil?
+
+      context.ui.info("Building JRuby gem with mise and jruby@#{jruby_version}...")
+      context.shell.run("mise", "exec", "jruby@#{jruby_version}", "--", "bundle", "exec", "rake", "java", "gem")
+      context.ui.info("Built: pkg/puma-#{version}-java.gem")
+      true
+    end
+
+    def build_with_local_jruby(version)
+      context.ui.info("Building JRuby gem with local jruby...")
+      context.shell.run("jruby", "-S", "bundle", "exec", "rake", "java", "gem")
+      context.ui.info("Built: pkg/puma-#{version}-java.gem")
+      true
+    end
+
+    def latest_jruby_version
+      result = context.shell.run("mise", "latest", "jruby", allow_failure: true)
+      return result.stdout.strip if result.success? && !result.stdout.strip.empty?
+
+      context.ui.warn("mise could not determine a JRuby version.")
+      nil
+    end
+
+    def run_override(version)
+      context.ui.info("Building JRuby gem with override command...")
+      context.shell.run(*context.shell.split(override))
+      context.ui.info("Built: pkg/puma-#{version}-java.gem")
+      true
+    end
+
+    def override
+      context.env["PUMA_RELEASE_JRUBY_BUILD_COMMAND"]
+    end
+  end
+end
