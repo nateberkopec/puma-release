@@ -62,7 +62,7 @@ module PumaRelease
     end
 
     def release(tag)
-      json("gh", "release", "view", tag, "--repo", context.release_repo, "--json", "tagName,isDraft,body,url,assets")
+      json("gh", "release", "view", tag, "--repo", context.release_repo, "--json", "tagName,isDraft,body,url,assets,targetCommitish")
     end
 
     def create_release(tag, body, draft: true, target: nil)
@@ -77,6 +77,11 @@ module PumaRelease
 
     def edit_release_notes(tag, body)
       with_notes_file(body) { |path| context.shell.run("gh", "release", "edit", tag, "--repo", context.release_repo, "--notes-file", path) }
+      release(tag)
+    end
+
+    def edit_release_target(tag, target)
+      context.shell.run("gh", "release", "edit", tag, "--repo", context.release_repo, "--target", target)
       release(tag)
     end
 

@@ -20,6 +20,7 @@ module PumaRelease
         context.ui.info("Ensuring tag #{tag} points at HEAD and is pushed...")
         retarget_draft_release_tag_if_needed(tag)
         git_repo.ensure_release_tag_pushed!(tag)
+        sync_release_target_to_head(tag)
         context.ui.info("Building MRI gem...")
         context.shell.run("bundle", "exec", "rake", "build")
         context.ui.info("Built: pkg/puma-#{version}.gem")
@@ -45,6 +46,17 @@ module PumaRelease
         context.shell.run("git", "tag", "--no-sign", tag) if local_sha.empty? || local_sha != head_sha
         context.ui.warn("Retargeting draft release tag #{tag} from #{remote_sha[0, 12]} to #{head_sha[0, 12]}...")
         context.shell.run("gh", "api", "-X", "DELETE", "repos/#{context.release_repo}/git/refs/tags/#{tag}")
+      end
+
+      def sync_release_target_to_head(tag)
+        release = github.release(tag)
+        return unless release
+
+        head_sha = git_repo.head_sha
+        return if release.fetch("targetCommitish", "") == head_sha
+
+        context.ui.info("Updating release target for #{tag} to #{head_sha[0, 12]}...")
+        github.edit_release_target(tag, head_sha)
       end
 
       def manual_jruby_instructions
