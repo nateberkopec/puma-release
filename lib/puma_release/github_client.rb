@@ -15,6 +15,14 @@ module PumaRelease
       json("gh", "api", "repos/#{repo}/commits/#{sha}/pulls") || []
     end
 
+    def commit_author_login(repo, sha)
+      commit = json("gh", "api", "repos/#{repo}/commits/#{sha}")
+      login = commit&.dig("author", "login") || commit&.dig("committer", "login")
+      return login if login && !login.empty?
+
+      commit_pulls(repo, sha).first&.dig("user", "login")
+    end
+
     def pr(number, repo: context.release_repo)
       json("gh", "pr", "view", number.to_s, "--repo", repo, "--json", "number,title,url,state,mergedAt,author,labels,headRefName")
     end

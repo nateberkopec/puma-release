@@ -3,13 +3,14 @@
 module PumaRelease
   module Commands
     class Prepare
-      attr_reader :context, :git_repo, :repo_files, :github
+      attr_reader :context, :git_repo, :repo_files, :github, :contributors
 
       def initialize(context)
         @context = context
         @git_repo = GitRepo.new(context)
         @repo_files = RepoFiles.new(context)
         @github = GitHubClient.new(context)
+        @contributors = ContributorResolver.new(context, git_repo:, github:)
       end
 
       def call
@@ -46,7 +47,7 @@ module PumaRelease
 
         context.ui.info("Release PR created: #{pr_url}")
         context.ui.info("Draft GitHub release ready: #{release.fetch('url')}")
-        context.ui.warn("Waiting on @#{earner} for a codename before merging.") if earner
+        context.ui.warn(waiting_on_codename_message(earner)) if earner
         context.ui.info("STOP: review and merge the PR, then rerun puma-release.")
         :wait_for_merge
       end
@@ -58,8 +59,12 @@ module PumaRelease
 
         context.ui.info("Top contributors since #{last_tag}:")
         git_repo.top_contributors_since(last_tag).first(5).each { |line| puts line }
-        earner = git_repo.codename_earner(last_tag)
-        context.ui.info("Codename earner: #{earner}")
+        earner = contributors.codename_earner(last_tag)
+        return nil unless earner
+
+        label = earner.fetch(:name)
+        label += " (@#{earner[:login]})" if earner[:login]
+        context.ui.info("Codename earner: #{label}")
         earner
       end
 
@@ -89,7 +94,19 @@ module PumaRelease
         ]
         return lines.join("\n") unless earner
 
-        [*lines, "", "## Codename", "", "@#{earner} earned the codename for this release. Please propose a codename!"].join("\n")
+        [*lines, "", "## Codename", "", codename_message(earner)].join("\n")
+      end
+
+      def codename_message(earner)
+        return "@#{earner.fetch(:login)} earned the codename for this release. Please propose a codename!" if earner[:login]
+
+        "#{earner.fetch(:name)} earned the codename for this release. Please propose a codename!"
+      end
+
+      def waiting_on_codename_message(earner)
+        return "Waiting on @#{earner.fetch(:login)} for a codename before merging." if earner[:login]
+
+        "Waiting on #{earner.fetch(:name)} for a codename before merging."
       end
 
       def release_body(version)

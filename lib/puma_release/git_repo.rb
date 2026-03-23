@@ -39,8 +39,15 @@ module PumaRelease
       shell.output("git", "shortlog", "-s", "-n", "--no-merges", "#{tag}..HEAD").lines(chomp: true)
     end
 
-    def codename_earner(tag)
-      top_contributors_since(tag).first.to_s.sub(/^\s*\d+\s*/, "")
+    def top_contributors_since_with_email(tag)
+      shell.output("git", "shortlog", "-s", "-n", "-e", "--no-merges", "#{tag}..HEAD").lines(chomp: true)
+    end
+
+    def commit_authors_since(tag)
+      shell.output("git", "log", "--format=%H%x09%aN%x09%aE", "#{tag}..HEAD").lines(chomp: true).map do |line|
+        sha, name, email = line.split("\t", 3)
+        { sha:, name:, email: }
+      end
     end
 
     def release_tag(version) = "v#{version}"
