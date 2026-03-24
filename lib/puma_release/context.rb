@@ -18,6 +18,7 @@ module PumaRelease
     def metadata_repo = options.fetch(:metadata_repo)
     def allow_unknown_ci? = options.fetch(:allow_unknown_ci)
     def yes? = options.fetch(:yes)
+    def debug? = options.fetch(:debug, false)
     def changelog_backend = env.fetch("PUMA_RELEASE_CHANGELOG_BACKEND", options.fetch(:changelog_backend))
     def agent_cmd = env.fetch("AGENT_CMD", "claude")
     def version_file = repo_dir.join("lib/puma/const.rb")

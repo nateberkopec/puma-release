@@ -14,7 +14,9 @@ module PumaRelease
     end
 
     def ensure_green!(sha)
+      debug("ensure_green! called with sha=#{sha}")
       status = combined_status(sha)
+      debug("combined_status returned: #{status.inspect}")
       return context.ui.info("CI is green.") if status == :success
       return handle_unknown if status == :unknown
 
@@ -24,16 +26,58 @@ module PumaRelease
     private
 
     def combined_status(sha)
-      statuses = gh_json("gh", "api", "repos/#{context.release_repo}/commits/#{sha}/status") || {}
-      runs = gh_json("gh", "api", "repos/#{context.release_repo}/commits/#{sha}/check-runs") || {}
+      status_url = "repos/#{context.release_repo}/commits/#{sha}/status"
+      runs_url = "repos/#{context.release_repo}/commits/#{sha}/check-runs"
+
+      debug("fetching commit status from: #{status_url}")
+      statuses = gh_json("gh", "api", status_url) || {}
+      debug("commit status response keys: #{statuses.keys.inspect}")
+      debug("commit status state: #{statuses["state"].inspect}")
+      debug("statuses array length: #{Array(statuses["statuses"]).length}")
+      Array(statuses["statuses"]).each_with_index do |item, i|
+        debug("  status[#{i}]: context=#{item["context"].inspect} state=#{item["state"].inspect}")
+      end
+
+      debug("fetching check-runs from: #{runs_url}")
+      runs = gh_json("gh", "api", runs_url) || {}
+      debug("check-runs response keys: #{runs.keys.inspect}")
+      debug("check_runs array length: #{Array(runs["check_runs"]).length}")
+      Array(runs["check_runs"]).each_with_index do |run, i|
+        debug("  check_run[#{i}]: name=#{run["name"].inspect} status=#{run["status"].inspect} conclusion=#{run["conclusion"].inspect}")
+      end
+
       contexts = Array(statuses["statuses"]).map { |item| item.fetch("state") }
       conclusions = Array(runs["check_runs"]).flat_map { |run| [run["status"], run["conclusion"]].compact }
       values = contexts + conclusions
-      return :unknown if values.empty?
-      return :failure if values.any? { |value| FAILURE_CONCLUSIONS.include?(value) || value == "error" }
-      return :pending if values.any? { |value| PENDING_STATUSES.include?(value) }
-      return :success if (values - ["success", "neutral", "skipped", "completed"]).empty?
 
+      debug("contexts from statuses: #{contexts.inspect}")
+      debug("conclusions from check-runs: #{conclusions.inspect}")
+      debug("combined values: #{values.inspect}")
+
+      if values.empty?
+        debug("returning :unknown — no values found")
+        return :unknown
+      end
+
+      failure_values = values.select { |v| FAILURE_CONCLUSIONS.include?(v) || v == "error" }
+      if failure_values.any?
+        debug("returning :failure — found failure values: #{failure_values.inspect}")
+        return :failure
+      end
+
+      pending_values = values.select { |v| PENDING_STATUSES.include?(v) }
+      if pending_values.any?
+        debug("returning :pending — found pending values: #{pending_values.inspect}")
+        return :pending
+      end
+
+      unrecognized = values - ["success", "neutral", "skipped", "completed"]
+      if unrecognized.empty?
+        debug("returning :success — all values recognized as success: #{values.inspect}")
+        return :success
+      end
+
+      debug("returning :unknown — unrecognized values: #{unrecognized.inspect}")
       :unknown
     end
 
@@ -43,11 +87,22 @@ module PumaRelease
     end
 
     def gh_json(*command)
+      debug("gh_json running: #{command.join(" ")}")
       result = context.shell.run(*command, allow_failure: true)
-      return nil unless result.success?
+      debug("gh_json exit status: #{result.exitstatus}, success: #{result.success?}")
+      unless result.success?
+        debug("gh_json stderr: #{result.stderr.strip.inspect}")
+        debug("gh_json stdout: #{result.stdout.strip.inspect}")
+        return nil
+      end
 
       body = result.stdout.strip
+      debug("gh_json response body (first 500 chars): #{body[0, 500].inspect}")
       body.empty? ? {} : JSON.parse(body)
+    end
+
+    def debug(message)
+      context.ui.debug(message) if context.debug?
     end
   end
 end

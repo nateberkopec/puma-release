@@ -11,7 +11,8 @@ module PumaRelease
       metadata_repo: "puma/puma",
       changelog_backend: "auto",
       allow_unknown_ci: false,
-      yes: false
+      yes: false,
+      debug: false
     }.freeze
 
     def self.parse(argv)
@@ -25,6 +26,7 @@ module PumaRelease
         opts.on("--allow-unknown-ci", "Proceed when CI status cannot be determined") { options[:allow_unknown_ci] = true }
         opts.on("--changelog-backend NAME", "auto, agent, or communique") { |value| options[:changelog_backend] = value }
         opts.on("-y", "--yes", "Skip interactive confirmations") { options[:yes] = true }
+        opts.on("--debug", "Enable debug logging") { options[:debug] = true }
       end
 
       remaining = parser.parse(argv)
