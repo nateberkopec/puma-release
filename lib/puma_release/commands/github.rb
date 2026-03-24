@@ -14,6 +14,8 @@ module PumaRelease
 
       def call
         context.check_dependencies!("gh")
+        context.announce_live_mode!
+        context.ensure_release_writes_allowed!
         version = repo_files.current_version
         tag = git_repo.release_tag(version)
         body = repo_files.extract_history_section(version) || raise(Error, "Could not find section for #{version} in #{context.history_file}")

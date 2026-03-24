@@ -14,6 +14,8 @@ module PumaRelease
 
       def call
         context.check_dependencies!("git", "gh", "bundle")
+        context.announce_live_mode!
+        context.ensure_release_writes_allowed!
         git_repo.ensure_clean_main!
         version = repo_files.current_version
         tag = git_repo.release_tag(version)
@@ -36,7 +38,7 @@ module PumaRelease
 
       def retarget_draft_release_tag_if_needed(tag)
         head_sha = context.shell.output("git", "rev-parse", "HEAD").strip
-        remote_sha = context.shell.output("git", "ls-remote", "--refs", "--tags", "origin", "refs/tags/#{tag}").split.first.to_s
+        remote_sha = git_repo.remote_tag_sha(tag)
         return if remote_sha.empty? || remote_sha == head_sha
 
         release = github.release(tag)

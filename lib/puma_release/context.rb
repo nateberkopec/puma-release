@@ -17,7 +17,9 @@ module PumaRelease
     def repo_dir = options.fetch(:repo_dir)
     def metadata_repo = options.fetch(:metadata_repo)
     def allow_unknown_ci? = options.fetch(:allow_unknown_ci)
+    def skip_ci_check? = options.fetch(:skip_ci_check, false)
     def yes? = options.fetch(:yes)
+    def live? = options.fetch(:live, false)
     def debug? = options.fetch(:debug, false) || env["DEBUG"] == "true"
     def changelog_backend = env.fetch("PUMA_RELEASE_CHANGELOG_BACKEND", options.fetch(:changelog_backend))
     def agent_cmd = env.fetch("AGENT_CMD", "claude")
@@ -44,14 +46,44 @@ module PumaRelease
       raise Error, "Missing required dependencies: #{missing.join(' ')}" unless missing.empty?
     end
 
+    def announce_live_mode!
+      return unless live?
+      return if @live_mode_announced
+
+      ui.warn("LIVE MODE: writes will go to #{release_repo}")
+      @live_mode_announced = true
+    end
+
+    def ensure_release_writes_allowed!
+      return if live?
+      return unless release_repo == metadata_repo
+
+      raise Error,
+            "Refusing to write release state to #{release_repo} without --live. " \
+            "Use --release-repo OWNER/REPO to target a fork, or pass --live to operate on #{metadata_repo}."
+    end
+
     private
 
     def infer_release_repo
-      url = shell.output("git", "remote", "get-url", "origin").strip
-      match = url.match(%r{[:/]([^/]+/[^/.]+?)(?:\.git)?$})
-      raise Error, "Could not infer release repo from origin URL: #{url}" unless match
+      return metadata_repo if live?
 
-      match[1]
+      preferred_fork_repo || metadata_repo
+    end
+
+    def preferred_fork_repo
+      github_remotes.map(&:last).find { |repo| repo != metadata_repo }
+    end
+
+    def github_remotes
+      shell.output("git", "remote").lines(chomp: true).filter_map do |remote|
+        repo = github_repo_from_url(shell.output("git", "remote", "get-url", remote).strip)
+        repo ? [remote, repo] : nil
+      end
+    end
+
+    def github_repo_from_url(url)
+      url[%r{github\.com[:/]([^/]+/[^/.]+?)(?:\.git)?$}, 1]
     end
   end
 end

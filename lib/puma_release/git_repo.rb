@@ -16,9 +16,9 @@ module PumaRelease
       raise Error, "Must be on 'main' branch (currently on '#{current_branch}')" unless current_branch == "main"
       raise Error, "Working directory not clean. Commit or stash first." unless clean?
 
-      shell.run("git", "fetch", "origin", "--quiet")
-      remote_sha = shell.output("git", "rev-parse", "origin/main").strip
-      raise Error, "Local main differs from origin/main. Pull or push first." unless head_sha == remote_sha
+      shell.run("git", "fetch", metadata_remote, "--quiet")
+      remote_sha = shell.output("git", "rev-parse", "#{metadata_remote}/main").strip
+      raise Error, "Local main differs from #{metadata_remote}/main. Pull or push first." unless head_sha == remote_sha
     end
 
     def last_tag
@@ -62,24 +62,64 @@ module PumaRelease
     end
 
     def push_branch!(branch)
-      shell.run("git", "push", "-u", "origin", branch)
+      command = ["git", "push"]
+      command << "-u" if release_remote
+      command += [release_push_target, branch]
+      shell.run(*command)
+    end
+
+    def remote_tag_sha(tag, repo: context.release_repo)
+      shell.output("git", "ls-remote", "--refs", "--tags", remote_target_for(repo), "refs/tags/#{tag}").split.first.to_s
     end
 
     def ensure_release_tag_pushed!(tag)
       head = head_sha
       local = shell.optional_output("git", "rev-parse", "-q", "--verify", "refs/tags/#{tag}^{commit}")
-      remote = shell.output("git", "ls-remote", "--refs", "--tags", "origin", "refs/tags/#{tag}").split.first.to_s
+      remote = remote_tag_sha(tag)
 
       raise Error, "Remote tag #{tag} already exists at #{remote}, not HEAD #{head}." if !remote.empty? && remote != head
       return if remote == head
       raise Error, "Local tag #{tag} already exists at #{local}, not HEAD #{head}." if !local.empty? && local != head
 
       shell.run("git", "tag", "--no-sign", tag) if local.empty?
-      shell.run("git", "push", "origin", tag)
+      shell.run("git", "push", release_push_target, tag)
     end
 
     private
 
     def shell = context.shell
+
+    def metadata_remote
+      remote_name_for(context.metadata_repo) || "origin"
+    end
+
+    def release_remote
+      remote_name_for(context.release_repo)
+    end
+
+    def release_push_target
+      release_remote || github_url_for(context.release_repo)
+    end
+
+    def remote_target_for(repo)
+      remote_name_for(repo) || github_url_for(repo)
+    end
+
+    def remote_name_for(repo)
+      shell.output("git", "remote").lines(chomp: true).find do |remote|
+        github_repo_from_url(shell.output("git", "remote", "get-url", remote).strip) == repo
+      end
+    end
+
+    def github_url_for(repo)
+      origin_url = shell.output("git", "remote", "get-url", "origin").strip
+      return "git@github.com:#{repo}.git" if origin_url.match?(%r{\A(?:git@github\.com:|ssh://git@github\.com/)})
+
+      "https://github.com/#{repo}.git"
+    end
+
+    def github_repo_from_url(url)
+      url[%r{github\.com[:/]([^/]+/[^/.]+?)(?:\.git)?$}, 1]
+    end
   end
 end

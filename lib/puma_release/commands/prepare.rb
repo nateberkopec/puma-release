@@ -15,9 +15,10 @@ module PumaRelease
 
       def call
         context.check_dependencies!("git", "gh", context.agent_binary)
+        context.announce_live_mode!
+        context.ensure_release_writes_allowed!
         git_repo.ensure_clean_main!
-        context.ui.info("Checking CI status for HEAD...")
-        CiChecker.new(context).ensure_green!(git_repo.head_sha)
+        ensure_green_ci!
 
         last_tag = git_repo.last_tag
         context.ui.info("Last release tag: #{last_tag}")
@@ -53,6 +54,15 @@ module PumaRelease
       end
 
       private
+
+      def ensure_green_ci!
+        return context.ui.warn("Skipping CI check because --skip-ci-check was set.") if context.skip_ci_check?
+
+        context.ui.info("Checking CI status for HEAD...")
+        ci_checker.ensure_green!(git_repo.head_sha)
+      end
+
+      def ci_checker = CiChecker.new(context)
 
       def show_codename_earner(last_tag, bump_type)
         return nil if bump_type == "patch"
