@@ -92,7 +92,9 @@ module PumaRelease
       end
 
       def call
+        context.ui.info("Asking #{context.agent_cmd} to draft changelog entries...")
         payload = agent.ask_for_json(prompt, system_prompt: SYSTEM_PROMPT, schema: SCHEMA)
+        context.ui.info("Rendering changelog...")
         render(payload.fetch("entries"))
       end
 

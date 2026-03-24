@@ -4,15 +4,16 @@ require "json"
 
 module PumaRelease
   class AgentClient
-    attr_reader :context
+    attr_reader :context, :last_model_name
 
     def initialize(context)
       @context = context
     end
 
     def ask_for_json(prompt, system_prompt:, schema:)
+      @last_model_name = nil
       payload = if pi?
-        JSON.parse(context.shell.stream_output(*pi_command(json_prompt(prompt, schema), system_prompt:)).strip)
+        ask_pi_for_json(prompt, system_prompt:, schema:)
       else
         ask_claude_for_json(prompt, system_prompt:, schema:)
       end
@@ -34,8 +35,29 @@ module PumaRelease
       File.basename(context.shell.split(context.agent_cmd).first.to_s) == "pi"
     end
 
-    def pi_command(prompt, system_prompt:)
-      context.shell.split(context.agent_cmd) + [
+    def ask_pi_for_json(prompt, system_prompt:, schema:)
+      payload = nil
+      progress = { ticks: 0, shown: false }
+
+      context.shell.stream_json_events(*pi_command(json_prompt(prompt, schema), system_prompt:, mode: "json")) do |event|
+        case event["type"]
+        when "message_update", "tool_execution_update"
+          tick_structured_progress(progress)
+        when "message_end"
+          next unless event.dig("message", "role") == "assistant"
+
+          @last_model_name ||= extract_model_name(event.fetch("message"))
+          payload = extract_text_from_message(event.fetch("message"))
+        end
+      end
+
+      payload || raise(Error, "#{context.agent_cmd} returned no JSON payload")
+    ensure
+      finish_structured_progress(progress)
+    end
+
+    def pi_command(prompt, system_prompt:, mode: nil)
+      command = context.shell.split(context.agent_cmd) + [
         "-p",
         "--no-session",
         "--no-tools",
@@ -43,9 +65,10 @@ module PumaRelease
         "--no-skills",
         "--no-prompt-templates",
         "--no-themes",
-        "--system-prompt", system_prompt,
-        prompt
+        "--system-prompt", system_prompt
       ]
+      command += ["--mode", mode] if mode
+      command + [prompt]
     end
 
     def json_prompt(prompt, schema)
@@ -57,9 +80,42 @@ module PumaRelease
       PROMPT
     end
 
+    def extract_text_from_message(message)
+      Array(message.fetch("content", [])).filter_map do |content|
+        content["text"] if content["type"] == "text"
+      end.join
+    end
+
+    def extract_model_name(payload)
+      return context.comment_author_model_name unless payload
+
+      model = payload["model"].to_s.strip
+      provider = payload["provider"].to_s.strip
+      return "#{provider}/#{model}" unless provider.empty? || model.empty?
+      return model unless model.empty?
+
+      context.comment_author_model_name
+    end
+
+    def tick_structured_progress(progress)
+      progress[:ticks] += 1
+      return unless progress[:ticks] == 1 || (progress[:ticks] % 25).zero?
+
+      $stdout.print(".")
+      $stdout.flush
+      progress[:shown] = true
+    end
+
+    def finish_structured_progress(progress)
+      return unless progress[:shown]
+
+      $stdout.puts
+    end
+
     def ask_claude_for_json(prompt, system_prompt:, schema:)
       payload = nil
       context.shell.stream_json_events(*claude_command(system_prompt:, schema:), stdin_data: prompt) do |event|
+        @last_model_name ||= extract_model_name(event["message"] || event)
         case event["type"]
         when "assistant"
           Array(event.dig("message", "content")).each do |content|

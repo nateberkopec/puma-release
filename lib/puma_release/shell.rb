@@ -39,19 +39,35 @@ module PumaRelease
     end
 
     def stream_output(*command, stdin_data: nil, env_overrides: {})
-      buffer = +""
+      stdout_buffer = +""
+      stderr_buffer = +""
+
       Open3.popen3(env.merge(env_overrides), *command, chdir: cwd) do |stdin, stdout, stderr, wait_thr|
         stdin.write(stdin_data) if stdin_data
         stdin.close
-        stdout.each_line do |line|
-          $stdout.print(line)
-          $stdout.flush
-          buffer << line
+
+        stdout_thread = Thread.new do
+          stream_chunks(stdout) do |chunk|
+            $stdout.print(chunk)
+            $stdout.flush
+            stdout_buffer << chunk
+            yield chunk if block_given?
+          end
         end
+
+        stderr_thread = Thread.new do
+          stream_chunks(stderr) { |chunk| stderr_buffer << chunk }
+        end
+
+        stdout_thread.join
+        stderr_thread.join
         status = wait_thr.value
-        raise Error, command.join(" ") unless status.success?
+        return stdout_buffer if status.success?
+
+        details = stderr_buffer.strip
+        details = stdout_buffer.strip if details.empty?
+        raise Error, [command.join(" "), details].reject(&:empty?).join(": ")
       end
-      buffer
     end
 
     def stream_json_events(*command, stdin_data: nil, env_overrides: {})
@@ -76,6 +92,16 @@ module PumaRelease
 
     def split(command)
       Shellwords.split(command)
+    end
+
+    private
+
+    def stream_chunks(io)
+      loop do
+        chunk = io.readpartial(1024)
+        yield chunk
+      end
+    rescue EOFError
     end
   end
 end
