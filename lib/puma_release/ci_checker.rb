@@ -26,8 +26,8 @@ module PumaRelease
     private
 
     def combined_status(sha)
-      status_url = "repos/#{context.release_repo}/commits/#{sha}/status"
-      runs_url = "repos/#{context.release_repo}/commits/#{sha}/check-runs"
+      status_url = "repos/#{context.metadata_repo}/commits/#{sha}/status"
+      runs_url = "repos/#{context.metadata_repo}/commits/#{sha}/check-runs"
 
       debug("fetching commit status from: #{status_url}")
       statuses = gh_json("gh", "api", status_url) || {}
