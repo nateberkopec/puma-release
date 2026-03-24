@@ -12,6 +12,10 @@ class AgentClientTest < Minitest::Test
         '{"bump_type":"patch","reasoning_markdown":"Because of [this commit](https://github.com/puma/puma/commit/abc)."}'
       end
 
+      def stream_output(*command, **)
+        output(*command)
+      end
+
       def split(command)
         [command]
       end

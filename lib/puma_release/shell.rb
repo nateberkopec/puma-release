@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "json"
 require "open3"
 require "shellwords"
 
@@ -35,6 +36,38 @@ module PumaRelease
 
     def output(*command, **options)
       run(*command, **options).stdout
+    end
+
+    def stream_output(*command, stdin_data: nil, env_overrides: {})
+      buffer = +""
+      Open3.popen3(env.merge(env_overrides), *command, chdir: cwd) do |stdin, stdout, stderr, wait_thr|
+        stdin.write(stdin_data) if stdin_data
+        stdin.close
+        stdout.each_line do |line|
+          $stdout.print(line)
+          $stdout.flush
+          buffer << line
+        end
+        status = wait_thr.value
+        raise Error, command.join(" ") unless status.success?
+      end
+      buffer
+    end
+
+    def stream_json_events(*command, stdin_data: nil, env_overrides: {})
+      Open3.popen3(env.merge(env_overrides), *command, chdir: cwd) do |stdin, stdout, stderr, wait_thr|
+        stdin.write(stdin_data) if stdin_data
+        stdin.close
+        stdout.each_line do |line|
+          next if line.strip.empty?
+          begin
+            yield JSON.parse(line)
+          rescue JSON::ParserError
+          end
+        end
+        status = wait_thr.value
+        raise Error, command.join(" ") unless status.success?
+      end
     end
 
     def optional_output(*command)

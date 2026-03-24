@@ -32,6 +32,20 @@ module TestSupport
       raise PumaRelease::Error, command.join(" ")
     end
 
+    def stream_output(*command, **options)
+      output(*command, **options)
+    end
+
+    def stream_json_events(*command, **options)
+      output(*command, **options).each_line do |line|
+        next if line.strip.empty?
+        begin
+          yield JSON.parse(line)
+        rescue JSON::ParserError
+        end
+      end
+    end
+
     def optional_output(*command)
       output(*command)
     end

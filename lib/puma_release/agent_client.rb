@@ -12,10 +12,9 @@ module PumaRelease
 
     def ask_for_json(prompt, system_prompt:, schema:)
       payload = if pi?
-        JSON.parse(context.shell.output(*pi_command(json_prompt(prompt, schema), system_prompt:)).strip)
+        JSON.parse(context.shell.stream_output(*pi_command(json_prompt(prompt, schema), system_prompt:)).strip)
       else
-        response = JSON.parse(context.shell.output(*claude_command(system_prompt:, schema:), stdin_data: prompt))
-        response["structured_output"] || response
+        ask_claude_for_json(prompt, system_prompt:, schema:)
       end
       payload = JSON.parse(payload) if payload.is_a?(String)
       payload
@@ -24,9 +23,9 @@ module PumaRelease
     end
 
     def ask_for_text(prompt, system_prompt:)
-      return context.shell.output(*pi_command(prompt, system_prompt:)).strip if pi?
+      return context.shell.stream_output(*pi_command(prompt, system_prompt:)).strip if pi?
 
-      context.shell.output(*claude_command(system_prompt:), stdin_data: prompt).strip
+      context.shell.stream_output(*claude_command(system_prompt:), stdin_data: prompt).strip
     end
 
     private
@@ -58,6 +57,23 @@ module PumaRelease
       PROMPT
     end
 
+    def ask_claude_for_json(prompt, system_prompt:, schema:)
+      payload = nil
+      context.shell.stream_json_events(*claude_command(system_prompt:, schema:), stdin_data: prompt) do |event|
+        case event["type"]
+        when "assistant"
+          Array(event.dig("message", "content")).each do |content|
+            next unless content["type"] == "text"
+            $stdout.print(content["text"])
+            $stdout.flush
+          end
+        when "result"
+          payload = event["structured_output"] || JSON.parse(event.fetch("result"))
+        end
+      end
+      payload
+    end
+
     def claude_command(system_prompt:, schema: nil)
       command = context.shell.split(context.agent_cmd) + [
         "-p",
@@ -67,7 +83,7 @@ module PumaRelease
       ]
       return command unless schema
 
-      command + ["--output-format", "json", "--json-schema", JSON.generate(schema)]
+      command + ["--output-format", "stream-json", "--json-schema", JSON.generate(schema)]
     end
   end
 end
