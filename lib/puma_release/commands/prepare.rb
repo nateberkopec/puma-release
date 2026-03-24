@@ -98,6 +98,8 @@ module PumaRelease
 
       def pr_comment(recommendation, earner)
         lines = [
+          context.comment_attribution(recommendation.fetch("model_name", context.comment_author_model_name)),
+          "",
           "## Version bump recommendation",
           "",
           "Recommended bump: **#{recommendation.fetch('bump_type')}**",

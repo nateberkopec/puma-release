@@ -23,6 +23,8 @@ module PumaRelease
     def debug? = options.fetch(:debug, false) || env["DEBUG"] == "true"
     def changelog_backend = env.fetch("PUMA_RELEASE_CHANGELOG_BACKEND", options.fetch(:changelog_backend))
     def agent_cmd = env.fetch("AGENT_CMD", "claude")
+    TOOL_URL = "https://github.com/nateberkopec/puma-release"
+
     def version_file = repo_dir.join("lib/puma/const.rb")
     def history_file = repo_dir.join("History.md")
 
@@ -44,6 +46,17 @@ module PumaRelease
     def check_dependencies!(*commands)
       missing = commands.flatten.compact.uniq.reject { |command| shell.available?(command) }
       raise Error, "Missing required dependencies: #{missing.join(' ')}" unless missing.empty?
+    end
+
+    def comment_author_model_name(fallback: env["AGENT_MODEL_NAME"])
+      value = fallback.to_s.strip
+      return value unless value.empty?
+
+      agent_binary
+    end
+
+    def comment_attribution(model_name)
+      "This comment was written by #{model_name} working on behalf of [puma-release](#{TOOL_URL})."
     end
 
     def announce_live_mode!

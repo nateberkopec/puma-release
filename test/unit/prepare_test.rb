@@ -59,4 +59,26 @@ class PrepareTest < Minitest::Test
     assert_equal ["abc123"], calls
     assert_empty ui.warnings
   end
+
+  def test_pr_comment_starts_with_llm_attribution
+    context = Object.new
+    context.define_singleton_method(:comment_attribution) do |model_name|
+      "This comment was written by #{model_name} working on behalf of [puma-release](https://github.com/nateberkopec/puma-release)."
+    end
+    context.define_singleton_method(:comment_author_model_name) { "fallback-model" }
+    prepare = PumaRelease::Commands::Prepare.allocate
+    prepare.instance_variable_set(:@context, context)
+
+    comment = prepare.send(
+      :pr_comment,
+      {
+        "model_name" => "openai-codex/gpt-5.4",
+        "bump_type" => "minor",
+        "reasoning_markdown" => "Because of [this commit](https://github.com/puma/puma/commit/abc)."
+      },
+      nil
+    )
+
+    assert_match(%r{\AThis comment was written by openai-codex/gpt-5\.4 working on behalf of \[puma-release\]\(https://github.com/nateberkopec/puma-release\)\.}, comment)
+  end
 end

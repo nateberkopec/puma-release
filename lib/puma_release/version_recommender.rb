@@ -39,7 +39,11 @@ module PumaRelease
       raise Error, "#{context.agent_cmd} must include commit links in its reasoning" unless reasoning.include?("https://github.com/#{context.metadata_repo}/commit/")
       raise Error, "#{context.agent_cmd} must return bump reasoning as a single paragraph" if reasoning.include?("\n\n")
 
-      { "bump_type" => bump_type, "reasoning_markdown" => reasoning }
+      {
+        "bump_type" => bump_type,
+        "reasoning_markdown" => reasoning,
+        "model_name" => agent.last_model_name || context.comment_author_model_name
+      }
     end
 
     private
