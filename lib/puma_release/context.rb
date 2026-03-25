@@ -86,7 +86,36 @@ module PumaRelease
     end
 
     def preferred_fork_repo
-      github_remotes.map(&:last).find { |repo| repo != metadata_repo }
+      candidates = github_remotes.reject { |_remote, repo| repo == metadata_repo }
+      return candidates.first&.last if candidates.one?
+
+      login_match = candidates.find { |_remote, repo| repo_owner(repo) == github_login }
+      return login_match.last if login_match
+
+      origin_match = candidates.find { |remote, _repo| remote == "origin" }
+      origin_match&.last
+    end
+
+    def github_login
+      return @github_login if defined?(@github_login)
+
+      @github_login = fetch_github_login
+    end
+
+    def repo_owner(repo)
+      repo.split("/", 2).first
+    end
+
+    def fetch_github_login
+      return nil unless shell.available?("gh")
+
+      result = shell.run("gh", "api", "user", allow_failure: true)
+      return nil unless result.success?
+
+      login = JSON.parse(result.stdout).fetch("login", "").strip
+      login.empty? ? nil : login
+    rescue Errno::ENOENT, JSON::ParserError
+      nil
     end
 
     def github_remotes

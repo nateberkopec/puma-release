@@ -10,14 +10,17 @@ module PumaRelease
       end
 
       def call
-        step = StageDetector.new(context).next_step
+        step = stage_detector.next_step
         return wait_for_merge if step == :wait_for_merge
+        return complete if step == :complete
         return run_step(step) if confirm_step(step)
 
         :aborted
       end
 
       private
+
+      def stage_detector = StageDetector.new(context)
 
       def confirm_step(step)
         return true if context.yes?
@@ -32,6 +35,11 @@ module PumaRelease
         when :github then Github.new(context).call
         else raise Error, "Unknown step: #{step}"
         end
+      end
+
+      def complete
+        context.ui.info("The current release is already complete. No action needed.")
+        :complete
       end
 
       def wait_for_merge

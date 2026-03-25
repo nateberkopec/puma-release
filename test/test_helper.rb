@@ -47,7 +47,7 @@ module TestSupport
     end
 
     def optional_output(*command)
-      output(*command)
+      output(*command).strip
     end
 
     def available?(_command)

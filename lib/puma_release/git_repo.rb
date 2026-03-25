@@ -11,6 +11,7 @@ module PumaRelease
     def current_branch = shell.output("git", "rev-parse", "--abbrev-ref", "HEAD").strip
     def clean? = shell.output("git", "status", "--porcelain").strip.empty?
     def head_sha = shell.output("git", "rev-parse", "HEAD").strip
+    def commits_since(tag) = shell.output("git", "rev-list", "--count", "#{tag}..HEAD").strip.to_i
 
     def ensure_clean_main!
       raise Error, "Must be on 'main' branch (currently on '#{current_branch}')" unless current_branch == "main"
@@ -58,7 +59,7 @@ module PumaRelease
 
     def commit_release!(version)
       shell.run("git", "add", context.version_file.to_s, context.history_file.to_s)
-      shell.run("git", "commit", "--no-gpg-sign", "-m", "Release v#{version}")
+      shell.run("git", "commit", "-S", "-m", "Release v#{version}")
     end
 
     def push_branch!(branch)
@@ -69,19 +70,37 @@ module PumaRelease
     end
 
     def remote_tag_sha(tag, repo: context.release_repo)
-      shell.output("git", "ls-remote", "--refs", "--tags", remote_target_for(repo), "refs/tags/#{tag}").split.first.to_s
+      refs = shell.output("git", "ls-remote", "--tags", remote_target_for(repo), "refs/tags/#{tag}", "refs/tags/#{tag}^{}").lines(chomp: true)
+      peeled = refs.find { |line| line.end_with?("refs/tags/#{tag}^{}") }
+      direct = refs.find { |line| line.end_with?("refs/tags/#{tag}") }
+      (peeled || direct).to_s.split.first.to_s
+    end
+
+    def local_tag_sha(tag)
+      shell.optional_output("git", "rev-parse", "-q", "--verify", "refs/tags/#{tag}^{commit}")
+    end
+
+    def create_signed_tag!(tag, message: "Release #{tag}")
+      shell.run("git", "tag", "-s", tag, "-m", message)
+    end
+
+    def local_tag_signed?(tag)
+      return false if local_tag_sha(tag).empty?
+
+      shell.output("git", "cat-file", "-p", "refs/tags/#{tag}").include?("-----BEGIN PGP SIGNATURE-----")
     end
 
     def ensure_release_tag_pushed!(tag)
       head = head_sha
-      local = shell.optional_output("git", "rev-parse", "-q", "--verify", "refs/tags/#{tag}^{commit}")
+      local = local_tag_sha(tag)
       remote = remote_tag_sha(tag)
 
       raise Error, "Remote tag #{tag} already exists at #{remote}, not HEAD #{head}." if !remote.empty? && remote != head
       return if remote == head
       raise Error, "Local tag #{tag} already exists at #{local}, not HEAD #{head}." if !local.empty? && local != head
+      raise Error, "Local tag #{tag} exists at #{head} but is not GPG-signed." if !local.empty? && !local_tag_signed?(tag)
 
-      shell.run("git", "tag", "--no-sign", tag) if local.empty?
+      create_signed_tag!(tag) if local.empty?
       shell.run("git", "push", release_push_target, tag)
     end
 

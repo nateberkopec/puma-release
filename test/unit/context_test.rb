@@ -52,6 +52,38 @@ class ContextTest < Minitest::Test
     assert_includes error.message, "without --live"
   end
 
+  def test_release_repo_prefers_the_authenticated_users_fork_when_multiple_candidates_exist
+    shell = FakeShell.new(
+      {
+        ["git", "remote"] => "backup\norigin\nupstream\n",
+        ["git", "remote", "get-url", "backup"] => "git@github.com:someoneelse/puma.git\n",
+        ["git", "remote", "get-url", "origin"] => "git@github.com:nateberkopec/puma.git\n",
+        ["git", "remote", "get-url", "upstream"] => "https://github.com/puma/puma.git\n",
+        ["gh", "api", "user"] => FakeShell::Result.new(stdout: '{"login":"nateberkopec"}', stderr: "", success?: true, exitstatus: 0)
+      }
+    )
+
+    context = build_context(shell:, live: false)
+
+    assert_equal "nateberkopec/puma", context.release_repo
+  end
+
+  def test_release_repo_falls_back_to_metadata_repo_when_fork_is_ambiguous
+    shell = FakeShell.new(
+      {
+        ["git", "remote"] => "backup\nmirror\norigin\n",
+        ["git", "remote", "get-url", "backup"] => "git@github.com:someoneelse/puma.git\n",
+        ["git", "remote", "get-url", "mirror"] => "git@github.com:anotheruser/puma.git\n",
+        ["git", "remote", "get-url", "origin"] => "https://github.com/puma/puma.git\n",
+        ["gh", "api", "user"] => FakeShell::Result.new(stdout: '{"login":"nateberkopec"}', stderr: "", success?: true, exitstatus: 0)
+      }
+    )
+
+    context = build_context(shell:, live: false)
+
+    assert_equal "puma/puma", context.release_repo
+  end
+
   def test_announce_live_mode_warns_once
     shell = FakeShell.new
     ui = FakeUI.new

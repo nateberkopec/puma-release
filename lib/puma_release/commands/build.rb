@@ -22,7 +22,7 @@ module PumaRelease
         context.ui.info("Ensuring tag #{tag} points at HEAD and is pushed...")
         retarget_draft_release_tag_if_needed(tag)
         git_repo.ensure_release_tag_pushed!(tag)
-        sync_release_target_to_head(tag)
+        sync_release_target_to_tag(tag)
         sync_release_title(tag, version)
         context.ui.info("Building MRI gem...")
         context.shell.run("bundle", "exec", "rake", "build")
@@ -37,29 +37,30 @@ module PumaRelease
       private
 
       def retarget_draft_release_tag_if_needed(tag)
-        head_sha = context.shell.output("git", "rev-parse", "HEAD").strip
+        head_sha = git_repo.head_sha
         remote_sha = git_repo.remote_tag_sha(tag)
         return if remote_sha.empty? || remote_sha == head_sha
 
         release = github.release(tag)
         raise Error, "Remote tag #{tag} already exists at #{remote_sha}, not HEAD #{head_sha}." unless release&.fetch("isDraft", false)
 
-        local_sha = context.shell.optional_output("git", "rev-parse", "-q", "--verify", "refs/tags/#{tag}^{commit}")
+        local_sha = git_repo.local_tag_sha(tag)
         context.shell.run("git", "tag", "-d", tag, allow_failure: true) unless local_sha.empty? || local_sha == head_sha
-        context.shell.run("git", "tag", "--no-sign", tag) if local_sha.empty? || local_sha != head_sha
+        git_repo.create_signed_tag!(tag) if local_sha.empty? || local_sha != head_sha
         context.ui.warn("Retargeting draft release tag #{tag} from #{remote_sha[0, 12]} to #{head_sha[0, 12]}...")
         context.shell.run("gh", "api", "-X", "DELETE", "repos/#{context.release_repo}/git/refs/tags/#{tag}")
       end
 
-      def sync_release_target_to_head(tag)
+      def sync_release_target_to_tag(tag)
         release = github.release(tag)
         return unless release
 
-        head_sha = git_repo.head_sha
-        return if release.fetch("targetCommitish", "") == head_sha
+        tag_sha = git_repo.local_tag_sha(tag)
+        raise Error, "Local tag #{tag} is missing." if tag_sha.empty?
+        return if release.fetch("targetCommitish", "") == tag_sha
 
-        context.ui.info("Updating release target for #{tag} to #{head_sha[0, 12]}...")
-        github.edit_release_target(tag, head_sha)
+        context.ui.info("Updating release target for #{tag} to #{tag_sha[0, 12]}...")
+        github.edit_release_target(tag, tag_sha)
       end
 
       def sync_release_title(tag, version)

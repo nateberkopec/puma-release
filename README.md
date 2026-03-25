@@ -22,10 +22,10 @@ The CLI moves through Puma's release flow in three steps:
    - builds the MRI gem
    - builds the JRuby gem when possible
 3. **`github`**
-   - publishes the GitHub release
    - uploads the built gem artifacts
+   - publishes the GitHub release
 
-`run` detects the next step automatically and runs the right command.
+`run` detects the next step automatically and runs the right command. If the current release is already complete and there are no new commits since the last tag, it reports that no action is needed.
 
 ## Safety model
 
@@ -33,7 +33,8 @@ This tool is designed to make fork-based release prep the default.
 
 - `metadata_repo` is used for read-only operations such as CI checks, commit links, and PR metadata.
 - `release_repo` is used for writes such as pushing branches and tags, opening PRs, and editing releases.
-- Without `--live`, `puma-release` prefers a fork remote from your checkout.
+- Without `--live`, `puma-release` prefers your authenticated fork, then a non-upstream `origin` remote.
+- If it cannot identify a plausible fork unambiguously, it falls back to `metadata_repo` and refuses writes unless you pass `--release-repo` or `--live`.
 - Writing to `puma/puma` requires an explicit `--live` opt-in.
 - When `--live` is set, the CLI prints a prominent warning before write steps.
 
@@ -51,6 +52,7 @@ You will also need these tools available in your shell:
 - `gh`
 - `bundle`
 - the agent binary configured by `AGENT_CMD` for version/changelog generation
+- working GPG signing for Git commits and tags; release commits and tags are created with signing required
 
 ## Quickstart
 
