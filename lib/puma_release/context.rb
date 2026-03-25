@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
+require "shellwords"
 
 module PumaRelease
   class Context
@@ -83,6 +84,26 @@ module PumaRelease
       return true if ui.confirm("LIVE MODE: #{description} on GitHub for #{release_repo}. Continue?")
 
       raise Error, "Aborted live GitHub action: #{description}"
+    end
+
+    def confirm_live_git_command!(*command)
+      return true unless live?
+      return true if yes?
+
+      rendered = Shellwords.join(command)
+      return true if ui.confirm("LIVE MODE: about to run git command: #{rendered}. Continue?")
+
+      raise Error, "Aborted live git action: #{rendered}"
+    end
+
+    def confirm_live_gh_command!(*command)
+      return true unless live?
+      return true if yes?
+
+      rendered = Shellwords.join(command)
+      return true if ui.confirm("LIVE MODE: about to run gh command: #{rendered}. Continue?")
+
+      raise Error, "Aborted live gh action: #{rendered}"
     end
 
     private

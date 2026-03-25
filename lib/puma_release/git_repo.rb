@@ -17,7 +17,7 @@ module PumaRelease
       raise Error, "Must be on 'main' branch (currently on '#{current_branch}')" unless current_branch == "main"
       raise Error, "Working directory not clean. Commit or stash first." unless clean?
 
-      shell.run("git", "fetch", metadata_remote, "--quiet")
+      run_git!("fetch", metadata_remote, "--quiet")
       remote_sha = shell.output("git", "rev-parse", "#{metadata_remote}/main").strip
       raise Error, "Local main differs from #{metadata_remote}/main. Pull or push first." unless head_sha == remote_sha
     end
@@ -54,19 +54,19 @@ module PumaRelease
     def release_tag(version) = "v#{version}"
 
     def checkout_release_branch!(branch)
-      shell.run("git", "checkout", "-b", branch)
+      run_git!("checkout", "-b", branch)
     end
 
     def commit_release!(version)
-      shell.run("git", "add", context.version_file.to_s, context.history_file.to_s)
-      shell.run("git", "commit", "-S", "-m", "Release v#{version}")
+      run_git!("add", context.version_file.to_s, context.history_file.to_s)
+      run_git!("commit", "-S", "-m", "Release v#{version}")
     end
 
     def push_branch!(branch)
-      command = ["git", "push"]
+      command = ["push"]
       command << "-u" if release_remote
       command += [release_push_target, branch]
-      shell.run(*command)
+      run_git!(*command)
     end
 
     def remote_tag_sha(tag, repo: context.release_repo)
@@ -89,7 +89,7 @@ module PumaRelease
     end
 
     def create_signed_tag!(tag, message: "Release #{tag}")
-      shell.run("git", "tag", "-s", tag, "-m", message)
+      run_git!("tag", "-s", tag, "-m", message)
     end
 
     def local_tag_signed?(tag)
@@ -115,12 +115,21 @@ module PumaRelease
 
       raise Error, "Remote tag #{tag} already exists but does not match the local signed tag." unless remote_object.empty?
 
-      shell.run("git", "push", release_push_target, tag)
+      run_git!("push", release_push_target, tag)
+    end
+
+    def delete_local_tag!(tag, allow_failure: false)
+      run_git!("tag", "-d", tag, allow_failure:)
     end
 
     private
 
     def shell = context.shell
+
+    def run_git!(*command, **options)
+      context.confirm_live_git_command!("git", *command) if context.respond_to?(:confirm_live_git_command!)
+      shell.run("git", *command, **options)
+    end
 
     def metadata_remote
       remote_name_for(context.metadata_repo) || "origin"

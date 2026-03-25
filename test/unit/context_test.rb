@@ -140,6 +140,53 @@ class ContextTest < Minitest::Test
     assert_empty ui.confirmations
   end
 
+  def test_confirm_live_git_command_prompts_in_live_mode_with_the_full_command
+    shell = FakeShell.new
+    ui = FakeUI.new(confirm_result: true)
+    context = build_context(shell:, live: true, release_repo: "puma/puma", ui:)
+
+    assert context.confirm_live_git_command!("git", "push", "origin", "main")
+    assert_equal [["LIVE MODE: about to run git command: git push origin main. Continue?", true]], ui.confirmations
+  end
+
+  def test_confirm_live_git_command_raises_when_declined
+    shell = FakeShell.new
+    ui = FakeUI.new(confirm_result: false)
+    context = build_context(shell:, live: true, release_repo: "puma/puma", ui:)
+
+    error = assert_raises(PumaRelease::Error) { context.confirm_live_git_command!("git", "push", "origin", "main") }
+
+    assert_includes error.message, "Aborted live git action"
+  end
+
+  def test_confirm_live_git_command_skips_prompt_when_yes_is_set
+    shell = FakeShell.new
+    ui = FakeUI.new(confirm_result: false)
+    context = build_context(shell:, live: true, release_repo: "puma/puma", yes: true, ui:)
+
+    assert context.confirm_live_git_command!("git", "push", "origin", "main")
+    assert_empty ui.confirmations
+  end
+
+  def test_confirm_live_gh_command_prompts_in_live_mode_with_the_full_command
+    shell = FakeShell.new
+    ui = FakeUI.new(confirm_result: true)
+    context = build_context(shell:, live: true, release_repo: "puma/puma", ui:)
+
+    assert context.confirm_live_gh_command!("gh", "release", "edit", "v7.3.0", "--repo", "puma/puma", "--draft=false")
+    assert_equal [["LIVE MODE: about to run gh command: gh release edit v7.3.0 --repo puma/puma --draft\\=false. Continue?", true]], ui.confirmations
+  end
+
+  def test_confirm_live_gh_command_raises_when_declined
+    shell = FakeShell.new
+    ui = FakeUI.new(confirm_result: false)
+    context = build_context(shell:, live: true, release_repo: "puma/puma", ui:)
+
+    error = assert_raises(PumaRelease::Error) { context.confirm_live_gh_command!("gh", "release", "edit", "v7.3.0", "--repo", "puma/puma", "--draft=false") }
+
+    assert_includes error.message, "Aborted live gh action"
+  end
+
   private
 
   def build_context(shell:, live:, release_repo: nil, yes: false, ui: PumaRelease::UI.new)

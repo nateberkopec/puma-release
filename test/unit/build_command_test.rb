@@ -20,7 +20,7 @@ class BuildCommandTest < Minitest::Test
     ui = FakeUI.new
     confirmations = []
     context = OpenStruct.new(shell:, ui:, release_repo: "puma/puma")
-    context.define_singleton_method(:confirm_live_github_write!) { |description| confirmations << description }
+    context.define_singleton_method(:confirm_live_gh_command!) { |*command| confirmations << command }
 
     local_tag_created = false
     git_repo = Object.new
@@ -43,7 +43,7 @@ class BuildCommandTest < Minitest::Test
     command.send(:retarget_draft_release_tag_if_needed, "v7.2.0")
 
     assert_includes ui.warnings, "Replacing draft release tag v7.2.0 with the local signed tag..."
-    assert_equal ["delete draft tag v7.2.0"], confirmations
+    assert_equal [["gh", "api", "-X", "DELETE", "repos/puma/puma/git/refs/tags/v7.2.0"]], confirmations
     assert_includes shell.commands, ["gh", "api", "-X", "DELETE", "repos/puma/puma/git/refs/tags/v7.2.0"]
   end
 end

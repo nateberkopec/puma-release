@@ -34,6 +34,23 @@ class GitRepoTest < Minitest::Test
     assert_includes shell.commands, ["git", "push", "git@github.com:nateberkopec/puma.git", "release-v7.3.0"]
   end
 
+  def test_push_branch_confirms_the_full_git_command_in_live_mode
+    shell = FakeShell.new(
+      {
+        ["git", "remote"] => "origin\nmine\n",
+        ["git", "remote", "get-url", "origin"] => "https://github.com/puma/puma.git\n",
+        ["git", "remote", "get-url", "mine"] => "git@github.com:nateberkopec/puma.git\n"
+      }
+    )
+    confirmations = []
+    context = OpenStruct.new(shell:, release_repo: "nateberkopec/puma", metadata_repo: "puma/puma")
+    context.define_singleton_method(:confirm_live_git_command!) { |*command| confirmations << command }
+
+    PumaRelease::GitRepo.new(context).push_branch!("release-v7.3.0")
+
+    assert_equal [["git", "push", "-u", "mine", "release-v7.3.0"]], confirmations
+  end
+
   def test_ensure_clean_main_prefers_metadata_repo_remote_when_present
     shell = FakeShell.new(
       {

@@ -87,7 +87,7 @@ module PumaRelease
         git_repo.create_signed_tag!(tag, message: "Temporary changelog tag for #{tag}")
         ChangelogGenerator.new(context, release_range, new_tag: tag, last_tag:).call
       ensure
-        context.shell.run("git", "tag", "-d", tag, allow_failure: true) if tag
+        git_repo.delete_local_tag!(tag, allow_failure: true) if tag
       end
 
       def ensure_draft_release(version, branch)

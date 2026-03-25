@@ -37,7 +37,7 @@ This tool is designed to make fork-based release prep the default.
 - If it cannot identify a plausible fork unambiguously, it falls back to `metadata_repo` and refuses writes unless you pass `--release-repo` or `--live`.
 - Writing to `puma/puma` requires an explicit `--live` opt-in.
 - When `--live` is set, the CLI prints a prominent warning before write steps.
-- In live mode, every GitHub write action asks for confirmation unless you pass `--yes`.
+- In live mode, every GitHub write action and mutating git command asks for confirmation and shows the exact command unless you pass `--yes`.
 
 ## Requirements
 

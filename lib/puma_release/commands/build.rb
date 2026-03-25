@@ -52,7 +52,7 @@ module PumaRelease
         return if remote_object == local_object
 
         context.ui.warn("Replacing draft release tag #{tag} with the local signed tag...")
-        context.confirm_live_github_write!("delete draft tag #{tag}")
+        context.confirm_live_gh_command!("gh", "api", "-X", "DELETE", "repos/#{context.release_repo}/git/refs/tags/#{tag}")
         context.shell.run("gh", "api", "-X", "DELETE", "repos/#{context.release_repo}/git/refs/tags/#{tag}")
       end
 
@@ -63,7 +63,7 @@ module PumaRelease
 
         raise Error, "Local tag #{tag} already exists at #{local_sha}, not HEAD #{head_sha}." if !local_sha.empty? && local_sha != head_sha
 
-        context.shell.run("git", "tag", "-d", tag, allow_failure: true) unless local_sha.empty?
+        git_repo.delete_local_tag!(tag, allow_failure: true) unless local_sha.empty?
         git_repo.create_signed_tag!(tag)
       end
 
