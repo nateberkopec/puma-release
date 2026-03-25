@@ -41,7 +41,8 @@ module PumaRelease
         git_repo.commit_release!(new_version)
         git_repo.push_branch!(branch)
 
-        pr_url = github.create_release_pr("Release v#{new_version}", branch)
+        compare_url = "https://github.com/#{context.metadata_repo}/compare/#{last_tag}...#{git_repo.head_sha}"
+        pr_url = github.create_release_pr("Release v#{new_version}", branch, body: compare_url)
         github.comment_on_pr(pr_url, pr_comment(recommendation, earner))
         release = ensure_draft_release(new_version, branch)
         context.events.publish(:checkpoint, kind: :wait_for_merge, pr_url:, release_url: release.fetch("url"), branch:)

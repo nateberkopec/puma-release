@@ -46,14 +46,14 @@ module PumaRelease
       prs.find { |pr| pr.fetch("headRefName", "").start_with?("release-v") }
     end
 
-    def create_release_pr(title, branch)
+    def create_release_pr(title, branch, body: "")
       context.shell.output(
         "gh", "pr", "create",
         "--repo", context.release_repo,
         "--base", "main",
         "--head", branch,
         "--title", title,
-        "--body", ""
+        "--body", body
       ).strip
     end
 
