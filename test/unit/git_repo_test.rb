@@ -124,4 +124,29 @@ class GitRepoTest < Minitest::Test
 
     assert_includes error.message, "is not GPG-signed"
   end
+
+  def test_ensure_release_tag_pushed_rejects_a_remote_tag_that_differs_from_the_local_signed_tag
+    shell = FakeShell.new(
+      {
+        ["git", "rev-parse", "HEAD"] => "abc123\n",
+        ["git", "rev-parse", "-q", "--verify", "refs/tags/v7.3.0^{commit}"] => "abc123\n",
+        ["git", "rev-parse", "-q", "--verify", "refs/tags/v7.3.0"] => "localtag\n",
+        ["git", "ls-remote", "--tags", "mine", "refs/tags/v7.3.0", "refs/tags/v7.3.0^{}"] => [
+          "remotetag\trefs/tags/v7.3.0",
+          "abc123\trefs/tags/v7.3.0^{}"
+        ].join("\n"),
+        ["git", "ls-remote", "--tags", "mine", "refs/tags/v7.3.0"] => "remotetag\trefs/tags/v7.3.0\n",
+        ["git", "cat-file", "-p", "refs/tags/v7.3.0"] => "object abc123\ntype commit\ntag v7.3.0\n\n-----BEGIN PGP SIGNATURE-----\n",
+        ["git", "remote"] => "origin\nmine\n",
+        ["git", "remote", "get-url", "origin"] => "https://github.com/puma/puma.git\n",
+        ["git", "remote", "get-url", "mine"] => "git@github.com:nateberkopec/puma.git\n"
+      }
+    )
+
+    context = OpenStruct.new(shell:, release_repo: "nateberkopec/puma", metadata_repo: "puma/puma")
+
+    error = assert_raises(PumaRelease::Error) { PumaRelease::GitRepo.new(context).ensure_release_tag_pushed!("v7.3.0") }
+
+    assert_includes error.message, "does not match the local signed tag"
+  end
 end

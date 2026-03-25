@@ -77,6 +77,14 @@ module PumaRelease
             "Use --release-repo OWNER/REPO to target a fork, or pass --live to operate on #{metadata_repo}."
     end
 
+    def confirm_live_github_write!(description)
+      return true unless live?
+      return true if yes?
+      return true if ui.confirm("LIVE MODE: #{description} on GitHub for #{release_repo}. Continue?")
+
+      raise Error, "Aborted live GitHub action: #{description}"
+    end
+
     private
 
     def infer_release_repo

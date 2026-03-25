@@ -76,8 +76,16 @@ module PumaRelease
       (peeled || direct).to_s.split.first.to_s
     end
 
+    def remote_tag_object_sha(tag, repo: context.release_repo)
+      shell.output("git", "ls-remote", "--tags", remote_target_for(repo), "refs/tags/#{tag}").split.first.to_s
+    end
+
     def local_tag_sha(tag)
       shell.optional_output("git", "rev-parse", "-q", "--verify", "refs/tags/#{tag}^{commit}")
+    end
+
+    def local_tag_object_sha(tag)
+      shell.optional_output("git", "rev-parse", "-q", "--verify", "refs/tags/#{tag}")
     end
 
     def create_signed_tag!(tag, message: "Release #{tag}")
@@ -96,11 +104,17 @@ module PumaRelease
       remote = remote_tag_sha(tag)
 
       raise Error, "Remote tag #{tag} already exists at #{remote}, not HEAD #{head}." if !remote.empty? && remote != head
-      return if remote == head
       raise Error, "Local tag #{tag} already exists at #{local}, not HEAD #{head}." if !local.empty? && local != head
       raise Error, "Local tag #{tag} exists at #{head} but is not GPG-signed." if !local.empty? && !local_tag_signed?(tag)
 
       create_signed_tag!(tag) if local.empty?
+
+      local_object = local_tag_object_sha(tag)
+      remote_object = remote_tag_object_sha(tag)
+      return if !remote_object.empty? && remote_object == local_object
+
+      raise Error, "Remote tag #{tag} already exists but does not match the local signed tag." unless remote_object.empty?
+
       shell.run("git", "push", release_push_target, tag)
     end
 

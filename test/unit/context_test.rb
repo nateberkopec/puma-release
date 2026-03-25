@@ -4,14 +4,22 @@ require_relative "../test_helper"
 
 class ContextTest < Minitest::Test
   class FakeUI
-    attr_reader :warnings
+    attr_reader :warnings, :confirmations
+    attr_accessor :confirm_result
 
-    def initialize
+    def initialize(confirm_result: true)
       @warnings = []
+      @confirmations = []
+      @confirm_result = confirm_result
     end
 
     def warn(message)
       warnings << message
+    end
+
+    def confirm(message, default: true)
+      confirmations << [message, default]
+      confirm_result
     end
   end
 
@@ -95,9 +103,46 @@ class ContextTest < Minitest::Test
     assert_equal ["LIVE MODE: writes will go to puma/puma"], ui.warnings
   end
 
+  def test_confirm_live_github_write_prompts_in_live_mode
+    shell = FakeShell.new
+    ui = FakeUI.new(confirm_result: true)
+    context = build_context(shell:, live: true, release_repo: "puma/puma", ui:)
+
+    assert context.confirm_live_github_write!("publish release v7.3.0")
+    assert_equal [["LIVE MODE: publish release v7.3.0 on GitHub for puma/puma. Continue?", true]], ui.confirmations
+  end
+
+  def test_confirm_live_github_write_raises_when_declined
+    shell = FakeShell.new
+    ui = FakeUI.new(confirm_result: false)
+    context = build_context(shell:, live: true, release_repo: "puma/puma", ui:)
+
+    error = assert_raises(PumaRelease::Error) { context.confirm_live_github_write!("publish release v7.3.0") }
+
+    assert_includes error.message, "Aborted live GitHub action"
+  end
+
+  def test_confirm_live_github_write_skips_prompt_when_not_live
+    shell = FakeShell.new
+    ui = FakeUI.new(confirm_result: false)
+    context = build_context(shell:, live: false, release_repo: "nateberkopec/puma", ui:)
+
+    assert context.confirm_live_github_write!("publish release v7.3.0")
+    assert_empty ui.confirmations
+  end
+
+  def test_confirm_live_github_write_skips_prompt_when_yes_is_set
+    shell = FakeShell.new
+    ui = FakeUI.new(confirm_result: false)
+    context = build_context(shell:, live: true, release_repo: "puma/puma", yes: true, ui:)
+
+    assert context.confirm_live_github_write!("publish release v7.3.0")
+    assert_empty ui.confirmations
+  end
+
   private
 
-  def build_context(shell:, live:, release_repo: nil, ui: PumaRelease::UI.new)
+  def build_context(shell:, live:, release_repo: nil, yes: false, ui: PumaRelease::UI.new)
     options = {
       command: "run",
       repo_dir: Pathname(Dir.pwd),
@@ -105,7 +150,7 @@ class ContextTest < Minitest::Test
       release_repo:,
       changelog_backend: "auto",
       allow_unknown_ci: false,
-      yes: false,
+      yes:,
       live:,
       debug: false
     }

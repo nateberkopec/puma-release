@@ -47,6 +47,7 @@ module PumaRelease
     end
 
     def create_release_pr(title, branch, body: "")
+      confirm_write!("create release PR #{title.inspect}")
       context.shell.output(
         "gh", "pr", "create",
         "--repo", context.release_repo,
@@ -58,10 +59,12 @@ module PumaRelease
     end
 
     def update_pr_body(pr_url, body)
+      confirm_write!("edit PR #{pr_url}")
       context.shell.run("gh", "pr", "edit", pr_url, "--body", body)
     end
 
     def comment_on_pr(pr_url, body)
+      confirm_write!("comment on PR #{pr_url}")
       context.shell.run("gh", "pr", "comment", pr_url, "--body", body)
     end
 
@@ -70,6 +73,7 @@ module PumaRelease
     end
 
     def create_release(tag, body, title: tag, draft: true, target: nil)
+      confirm_write!("create #{draft ? 'draft ' : ''}release #{tag}")
       with_notes_file(body) do |path|
         command = ["gh", "release", "create", tag, "--repo", context.release_repo, "--title", title, "--notes-file", path]
         command += ["--target", target] if target
@@ -80,26 +84,31 @@ module PumaRelease
     end
 
     def edit_release_notes(tag, body)
+      confirm_write!("edit release notes for #{tag}")
       with_notes_file(body) { |path| context.shell.run("gh", "release", "edit", tag, "--repo", context.release_repo, "--notes-file", path) }
       release(tag)
     end
 
     def edit_release_target(tag, target)
+      confirm_write!("retarget release #{tag} to #{target[0, 12]}")
       context.shell.run("gh", "release", "edit", tag, "--repo", context.release_repo, "--target", target)
       release(tag)
     end
 
     def edit_release_title(tag, title)
+      confirm_write!("edit release title for #{tag}")
       context.shell.run("gh", "release", "edit", tag, "--repo", context.release_repo, "--title", title)
       release(tag)
     end
 
     def publish_release(tag)
+      confirm_write!("publish release #{tag}")
       context.shell.run("gh", "release", "edit", tag, "--repo", context.release_repo, "--draft=false")
       release(tag)
     end
 
     def upload_release_assets(tag, *paths)
+      confirm_write!("upload assets for release #{tag}")
       context.shell.run("gh", "release", "upload", tag, "--repo", context.release_repo, "--clobber", *paths)
     end
 
@@ -111,6 +120,10 @@ module PumaRelease
 
       body = result.stdout.strip
       body.empty? ? {} : JSON.parse(body)
+    end
+
+    def confirm_write!(description)
+      context.confirm_live_github_write!(description)
     end
 
     def with_notes_file(body)

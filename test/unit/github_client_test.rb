@@ -11,9 +11,12 @@ class GitHubClientTest < Minitest::Test
       }
     )
 
+    confirmations = []
     context = OpenStruct.new(shell:, release_repo: "nateberkopec/puma")
+    context.define_singleton_method(:confirm_live_github_write!) { |description| confirmations << description }
     release = PumaRelease::GitHubClient.new(context).edit_release_target("v7.3.0", "abc123")
 
+    assert_equal ["retarget release v7.3.0 to abc123"], confirmations
     assert_equal "abc123", release.fetch("targetCommitish")
   end
 
@@ -25,9 +28,29 @@ class GitHubClientTest < Minitest::Test
       }
     )
 
+    confirmations = []
     context = OpenStruct.new(shell:, release_repo: "nateberkopec/puma")
+    context.define_singleton_method(:confirm_live_github_write!) { |description| confirmations << description }
     release = PumaRelease::GitHubClient.new(context).edit_release_title("v7.3.0", "v7.3.0 - INSERT CODENAME HERE")
 
+    assert_equal ["edit release title for v7.3.0"], confirmations
     assert_equal "v7.3.0 - INSERT CODENAME HERE", release.fetch("name")
+  end
+
+  def test_create_release_pr_confirms_before_writing
+    shell = FakeShell.new(
+      {
+        ["gh", "pr", "create", "--repo", "puma/puma", "--base", "main", "--head", "release-v7.3.0", "--title", "Release v7.3.0", "--body", "compare"] => "https://github.com/puma/puma/pull/1\n"
+      }
+    )
+
+    confirmations = []
+    context = OpenStruct.new(shell:, release_repo: "puma/puma")
+    context.define_singleton_method(:confirm_live_github_write!) { |description| confirmations << description }
+
+    pr_url = PumaRelease::GitHubClient.new(context).create_release_pr("Release v7.3.0", "release-v7.3.0", body: "compare")
+
+    assert_equal ["create release PR \"Release v7.3.0\""], confirmations
+    assert_equal "https://github.com/puma/puma/pull/1", pr_url
   end
 end

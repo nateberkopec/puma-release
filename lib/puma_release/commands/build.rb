@@ -37,18 +37,34 @@ module PumaRelease
       private
 
       def retarget_draft_release_tag_if_needed(tag)
-        head_sha = git_repo.head_sha
-        remote_sha = git_repo.remote_tag_sha(tag)
-        return if remote_sha.empty? || remote_sha == head_sha
-
         release = github.release(tag)
-        raise Error, "Remote tag #{tag} already exists at #{remote_sha}, not HEAD #{head_sha}." unless release&.fetch("isDraft", false)
+        return unless release&.fetch("isDraft", false)
 
-        local_sha = git_repo.local_tag_sha(tag)
-        context.shell.run("git", "tag", "-d", tag, allow_failure: true) unless local_sha.empty? || local_sha == head_sha
-        git_repo.create_signed_tag!(tag) if local_sha.empty? || local_sha != head_sha
-        context.ui.warn("Retargeting draft release tag #{tag} from #{remote_sha[0, 12]} to #{head_sha[0, 12]}...")
+        ensure_local_signed_tag!(tag)
+        remote_sha = git_repo.remote_tag_sha(tag)
+        return if remote_sha.empty?
+
+        head_sha = git_repo.head_sha
+        raise Error, "Remote tag #{tag} already exists at #{remote_sha}, not HEAD #{head_sha}." unless remote_sha == head_sha
+
+        remote_object = git_repo.remote_tag_object_sha(tag)
+        local_object = git_repo.local_tag_object_sha(tag)
+        return if remote_object == local_object
+
+        context.ui.warn("Replacing draft release tag #{tag} with the local signed tag...")
+        context.confirm_live_github_write!("delete draft tag #{tag}")
         context.shell.run("gh", "api", "-X", "DELETE", "repos/#{context.release_repo}/git/refs/tags/#{tag}")
+      end
+
+      def ensure_local_signed_tag!(tag)
+        head_sha = git_repo.head_sha
+        local_sha = git_repo.local_tag_sha(tag)
+        return if local_sha == head_sha && git_repo.local_tag_signed?(tag)
+
+        raise Error, "Local tag #{tag} already exists at #{local_sha}, not HEAD #{head_sha}." if !local_sha.empty? && local_sha != head_sha
+
+        context.shell.run("git", "tag", "-d", tag, allow_failure: true) unless local_sha.empty?
+        git_repo.create_signed_tag!(tag)
       end
 
       def sync_release_target_to_tag(tag)
