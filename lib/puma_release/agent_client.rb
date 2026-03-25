@@ -59,8 +59,10 @@ module PumaRelease
     def pi_command(prompt, system_prompt:, mode: nil)
       command = context.shell.split(context.agent_cmd) + [
         "-p",
-        "--no-tools",
+        "--thinking", "xhigh",
+        "--tools", "read,bash",
         "--no-extensions",
+        "--extension", pi_guard_extension_path,
         "--no-skills",
         "--no-prompt-templates",
         "--no-themes",
@@ -77,6 +79,10 @@ module PumaRelease
         Return only valid JSON matching this schema:
         #{JSON.pretty_generate(schema)}
       PROMPT
+    end
+
+    def pi_guard_extension_path
+      File.expand_path("../../config/pi-agent-guard.ts", __dir__)
     end
 
     def extract_text_from_message(message)

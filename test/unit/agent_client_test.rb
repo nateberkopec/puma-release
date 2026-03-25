@@ -49,8 +49,14 @@ class AgentClientTest < Minitest::Test
 
     assert_equal "patch", result.fetch("bump_type")
     assert_includes shell.command, "-p"
-    assert_includes shell.command, "--no-tools"
+    assert_includes shell.command, "--thinking"
+    assert_includes shell.command, "xhigh"
+    assert_includes shell.command, "--tools"
+    assert_includes shell.command, "read,bash"
+    assert_includes shell.command, "--extension"
+    assert_includes shell.command, File.expand_path("../../config/pi-agent-guard.ts", __dir__)
     assert_includes shell.command, "--mode"
+    refute_includes shell.command, "--no-tools"
     refute_includes shell.command, "--no-session"
     assert_equal "openai-codex/gpt-5.4", client.last_model_name
     assert_equal ".\n", $stdout.string

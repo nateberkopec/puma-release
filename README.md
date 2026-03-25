@@ -55,6 +55,7 @@ You will also need these tools available in your shell:
 - `gh`
 - `bundle`
 - the agent binary configured by `AGENT_CMD` for version/changelog generation
+  - when `AGENT_CMD=pi`, the launched agent is restricted to repo-local file reads and non-destructive git inspection commands
 - working GPG signing for Git commits and tags; release commits and tags are created with signing required
 
 ## Quickstart
@@ -125,6 +126,7 @@ puma-release [options] [command]
 ## Environment
 
 - `AGENT_CMD` — command used for structured AI calls. Defaults to `claude`
+  - when `AGENT_CMD=pi`, puma-release launches pi in `--thinking xhigh`
 - `PUMA_RELEASE_JRUBY_BUILD_COMMAND` — optional override for building the JRuby gem
 - `CHANGELOG_MAX_ATTEMPTS` — retry count for changelog generation
 
