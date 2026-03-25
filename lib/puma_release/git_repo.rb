@@ -52,6 +52,7 @@ module PumaRelease
     end
 
     def release_tag(version) = "v#{version}"
+    def proposal_tag(version) = "#{release_tag(version)}-proposal"
 
     def checkout_release_branch!(branch)
       run_git!("checkout", "-b", branch)

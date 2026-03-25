@@ -20,7 +20,6 @@ module PumaRelease
         version = repo_files.current_version
         tag = git_repo.release_tag(version)
         context.ui.info("Ensuring tag #{tag} points at HEAD and is pushed...")
-        retarget_draft_release_tag_if_needed(tag)
         git_repo.ensure_release_tag_pushed!(tag)
         sync_release_target_to_tag(tag)
         sync_release_title(tag, version)
@@ -35,37 +34,6 @@ module PumaRelease
       end
 
       private
-
-      def retarget_draft_release_tag_if_needed(tag)
-        release = github.release(tag)
-        return unless release&.fetch("isDraft", false)
-
-        ensure_local_signed_tag!(tag)
-        remote_sha = git_repo.remote_tag_sha(tag)
-        return if remote_sha.empty?
-
-        head_sha = git_repo.head_sha
-        raise Error, "Remote tag #{tag} already exists at #{remote_sha}, not HEAD #{head_sha}." unless remote_sha == head_sha
-
-        remote_object = git_repo.remote_tag_object_sha(tag)
-        local_object = git_repo.local_tag_object_sha(tag)
-        return if remote_object == local_object
-
-        context.ui.warn("Replacing draft release tag #{tag} with the local signed tag...")
-        context.confirm_live_gh_command!("gh", "api", "-X", "DELETE", "repos/#{context.release_repo}/git/refs/tags/#{tag}")
-        context.shell.run("gh", "api", "-X", "DELETE", "repos/#{context.release_repo}/git/refs/tags/#{tag}")
-      end
-
-      def ensure_local_signed_tag!(tag)
-        head_sha = git_repo.head_sha
-        local_sha = git_repo.local_tag_sha(tag)
-        return if local_sha == head_sha && git_repo.local_tag_signed?(tag)
-
-        raise Error, "Local tag #{tag} already exists at #{local_sha}, not HEAD #{head_sha}." if !local_sha.empty? && local_sha != head_sha
-
-        git_repo.delete_local_tag!(tag, allow_failure: true) unless local_sha.empty?
-        git_repo.create_signed_tag!(tag)
-      end
 
       def sync_release_target_to_tag(tag)
         release = github.release(tag)

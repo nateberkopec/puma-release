@@ -16,12 +16,13 @@ The CLI moves through Puma's release flow in three steps:
    - recommends the next version
    - updates `History.md` and `lib/puma/const.rb`
    - opens a release PR
-   - creates a draft GitHub release
+   - creates a draft GitHub release on a temporary `vX.Y.Z-proposal` tag
 2. **`build`**
-   - creates and pushes the release tag
+   - creates and pushes the final `vX.Y.Z` release tag
    - builds the MRI gem
    - builds the JRuby gem when possible
 3. **`github`**
+   - promotes the draft GitHub release from `vX.Y.Z-proposal` to `vX.Y.Z`
    - uploads the built gem artifacts
    - publishes the GitHub release
 
@@ -36,6 +37,7 @@ This tool is designed to make fork-based release prep the default.
 - Without `--live`, `puma-release` prefers your authenticated fork, then a non-upstream `origin` remote.
 - If it cannot identify a plausible fork unambiguously, it falls back to `metadata_repo` and refuses writes unless you pass `--release-repo` or `--live`.
 - Writing to `puma/puma` requires an explicit `--live` opt-in.
+- `prepare` uses a temporary `vX.Y.Z-proposal` tag for the draft release; the final `vX.Y.Z` tag is only created during `build`.
 - When `--live` is set, the CLI prints a prominent warning before write steps.
 - In live mode, every GitHub write action and mutating git command asks for confirmation and shows the exact command unless you pass `--yes`.
 
@@ -134,11 +136,6 @@ Run the test suite:
 bundle exec rake test
 ```
 
-Optional fork smoke test:
-
-```sh
-PUMA_RELEASE_SMOKE=1 bundle exec ruby -Itest test/integration/fork_smoke_test.rb
-```
 
 ## Contributing
 

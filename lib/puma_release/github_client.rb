@@ -69,6 +69,27 @@ module PumaRelease
       json("gh", "release", "view", tag, "--repo", context.release_repo, "--json", "tagName,name,isDraft,body,url,assets,targetCommitish")
     end
 
+    def retag_release(old_tag, new_tag, target: nil)
+      release_id = release_id(old_tag)
+      command = ["api", "-X", "PATCH", "repos/#{context.release_repo}/releases/#{release_id}", "-f", "tag_name=#{new_tag}"]
+      command += ["-f", "target_commitish=#{target}"] if target
+      run_gh!(*command)
+      release(new_tag)
+    end
+
+    def delete_release(tag, allow_failure: false)
+      release_id = release_id(tag, allow_failure:)
+      return false unless release_id
+
+      run_gh!("api", "-X", "DELETE", "repos/#{context.release_repo}/releases/#{release_id}", allow_failure:)
+      true
+    end
+
+    def delete_tag_ref(tag, allow_failure: false)
+      run_gh!("api", "-X", "DELETE", "repos/#{context.release_repo}/git/refs/tags/#{tag}", allow_failure:)
+      true
+    end
+
     def create_release(tag, body, title: tag, draft: true, target: nil)
       with_notes_file(body) do |path|
         command = ["release", "create", tag, "--repo", context.release_repo, "--title", title, "--notes-file", path]
@@ -121,6 +142,14 @@ module PumaRelease
     def output_gh!(*command, **options)
       context.confirm_live_gh_command!("gh", *command) if context.respond_to?(:confirm_live_gh_command!)
       context.shell.output("gh", *command, **options)
+    end
+
+    def release_id(tag, allow_failure: false)
+      payload = json("gh", "api", "repos/#{context.release_repo}/releases/tags/#{tag}")
+      return payload&.fetch("id", nil) if payload
+      return nil if allow_failure
+
+      raise Error, "Could not find release for tag #{tag}"
     end
 
     def with_notes_file(body)

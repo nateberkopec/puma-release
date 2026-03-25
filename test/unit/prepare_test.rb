@@ -81,4 +81,34 @@ class PrepareTest < Minitest::Test
 
     assert_match(%r{\AThis comment was written by openai-codex/gpt-5\.4 working on behalf of \[puma-release\]\(https://github.com/nateberkopec/puma-release\)\.}, comment)
   end
+
+  def test_ensure_draft_release_uses_the_proposal_tag
+    git_repo = Object.new
+    git_repo.define_singleton_method(:proposal_tag) { |_version| "v7.3.0-proposal" }
+
+    repo_files = Object.new
+    repo_files.define_singleton_method(:release_name) { |_version| "v7.3.0 - Example" }
+    repo_files.define_singleton_method(:extract_history_section) { |_version| "* Features\n  * Example ([#1])" }
+
+    calls = []
+    github = Object.new
+    github.define_singleton_method(:release) { |_tag| nil }
+    github.define_singleton_method(:create_release) do |tag, body, title:, draft:, target:|
+      calls << [:create_release, tag, body, title, draft, target]
+      { "name" => title, "body" => body, "targetCommitish" => target }
+    end
+    github.define_singleton_method(:edit_release_target) { |_tag, _target| flunk "edit_release_target should not be called when the draft release target already matches" }
+    github.define_singleton_method(:edit_release_title) { |_tag, _title| flunk "edit_release_title should not be called when the title already matches" }
+    github.define_singleton_method(:edit_release_notes) { |_tag, _body| flunk "edit_release_notes should not be called when the notes already match" }
+
+    prepare = PumaRelease::Commands::Prepare.allocate
+    prepare.instance_variable_set(:@context, OpenStruct.new(history_file: Pathname("History.md")))
+    prepare.instance_variable_set(:@git_repo, git_repo)
+    prepare.instance_variable_set(:@repo_files, repo_files)
+    prepare.instance_variable_set(:@github, github)
+
+    prepare.send(:ensure_draft_release, "7.3.0", "release-v7.3.0")
+
+    assert_equal [[:create_release, "v7.3.0-proposal", "* Features\n  * Example ([#1])", "v7.3.0 - Example", true, "release-v7.3.0"]], calls
+  end
 end

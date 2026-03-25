@@ -83,7 +83,7 @@ module PumaRelease
       end
 
       def prepare_changelog(release_range, new_version, last_tag)
-        tag = git_repo.release_tag(new_version)
+        tag = git_repo.proposal_tag(new_version)
         git_repo.create_signed_tag!(tag, message: "Temporary changelog tag for #{tag}")
         ChangelogGenerator.new(context, release_range, new_tag: tag, last_tag:).call
       ensure
@@ -91,11 +91,12 @@ module PumaRelease
       end
 
       def ensure_draft_release(version, branch)
-        tag = git_repo.release_tag(version)
+        tag = git_repo.proposal_tag(version)
         body = release_body(version)
         title = repo_files.release_name(version)
         release = github.release(tag)
         release ||= github.create_release(tag, body, title:, draft: true, target: branch)
+        release = github.edit_release_target(tag, branch) if release.fetch("targetCommitish", "") != branch
         release = github.edit_release_title(tag, title) if release.fetch("name", "") != title
         release.fetch("body", "") == body ? release : github.edit_release_notes(tag, body)
       end
