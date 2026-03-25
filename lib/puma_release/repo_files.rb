@@ -24,9 +24,12 @@ module PumaRelease
       "v#{version} - #{current_code_name}"
     end
 
-    def update_version!(new_version, bump_type)
+    def update_version!(new_version, bump_type, codename: nil)
       updated = content.sub(/PUMA_VERSION = VERSION = ".*"/, "PUMA_VERSION = VERSION = \"#{new_version}\"")
-      updated = updated.sub(/CODE_NAME = ".*"/, 'CODE_NAME = "INSERT CODENAME HERE"') unless bump_type == "patch"
+      unless bump_type == "patch"
+        placeholder = codename || "INSERT CODENAME HERE"
+        updated = updated.sub(/CODE_NAME = ".*"/, "CODE_NAME = \"#{placeholder}\"")
+      end
       context.version_file.write(updated)
     end
 

@@ -34,7 +34,7 @@ module PumaRelease
         context.ui.info("Generating link references...")
         refs = LinkReferenceBuilder.new(context).build(changelog)
         repo_files.prepend_history_section!(new_version, changelog, refs)
-        repo_files.update_version!(new_version, bump_type)
+        repo_files.update_version!(new_version, bump_type, codename: context.codename)
 
         branch = "release-v#{new_version}"
         git_repo.checkout_release_branch!(branch)
@@ -66,6 +66,7 @@ module PumaRelease
 
       def show_codename_earner(last_tag, bump_type)
         return nil if bump_type == "patch"
+        return nil if context.codename
 
         context.ui.info("Top contributors since #{last_tag}:")
         git_repo.top_contributors_since(last_tag).first(5).each { |line| puts line }

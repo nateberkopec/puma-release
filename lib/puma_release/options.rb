@@ -14,7 +14,8 @@ module PumaRelease
       skip_ci_check: false,
       yes: false,
       live: false,
-      debug: false
+      debug: false,
+      codename: nil
     }.freeze
 
     def self.parse(argv)
@@ -31,6 +32,7 @@ module PumaRelease
         opts.on("--changelog-backend NAME", "auto, agent, or communique") { |value| options[:changelog_backend] = value }
         opts.on("-y", "--yes", "Skip interactive confirmations") { options[:yes] = true }
         opts.on("--debug", "Enable debug logging") { options[:debug] = true }
+        opts.on("--codename NAME", "Set the release codename directly") { |value| options[:codename] = value }
       end
 
       remaining = parser.parse(argv)
