@@ -111,4 +111,26 @@ class PrepareTest < Minitest::Test
 
     assert_equal [[:create_release, "v7.3.0-proposal", "* Features\n  * Example ([#1])", "v7.3.0 - Example", true, "release-v7.3.0"]], calls
   end
+
+  def test_show_version_recommendation_prints_reasoning_and_breaking_changes
+    ui = FakeUI.new
+    context = OpenStruct.new(ui:)
+    prepare = PumaRelease::Commands::Prepare.allocate
+    prepare.instance_variable_set(:@context, context)
+
+    output = capture_io do
+      prepare.send(
+        :show_version_recommendation,
+        {
+          "reasoning_markdown" => "Major because of [this commit](https://github.com/puma/puma/commit/abc123).",
+          "breaking_changes" => ["Dropped support for an older Rack integration"]
+        }
+      )
+    end.first
+
+    assert_equal ["Version bump recommendation:"], ui.infos
+    assert_equal ["Potential breaking changes:"], ui.warnings
+    assert_includes output, "Major because of [this commit](https://github.com/puma/puma/commit/abc123)."
+    assert_includes output, "- Dropped support for an older Rack integration"
+  end
 end

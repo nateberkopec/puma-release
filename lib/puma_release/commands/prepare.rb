@@ -28,6 +28,7 @@ module PumaRelease
         current_version = repo_files.current_version
         new_version = git_repo.bump_version(current_version, bump_type)
         context.ui.info("Version bump: #{current_version} -> #{new_version}")
+        show_version_recommendation(recommendation)
 
         earner = show_codename_earner(last_tag, bump_type)
         changelog = prepare_changelog(release_range, new_version, last_tag)
@@ -80,6 +81,17 @@ module PumaRelease
         label += " (@#{earner[:login]})" if earner[:login]
         context.ui.info("Codename earner: #{label}")
         earner
+      end
+
+      def show_version_recommendation(recommendation)
+        context.ui.info("Version bump recommendation:")
+        puts recommendation.fetch("reasoning_markdown")
+
+        breaking_changes = recommendation.fetch("breaking_changes", [])
+        return if breaking_changes.empty?
+
+        context.ui.warn("Potential breaking changes:")
+        breaking_changes.each { |item| puts "- #{item}" }
       end
 
       def prepare_changelog(release_range, new_version, last_tag)
