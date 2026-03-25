@@ -59,7 +59,6 @@ module PumaRelease
     def pi_command(prompt, system_prompt:, mode: nil)
       command = context.shell.split(context.agent_cmd) + [
         "-p",
-        "--no-session",
         "--no-tools",
         "--no-extensions",
         "--no-skills",
@@ -81,9 +80,22 @@ module PumaRelease
     end
 
     def extract_text_from_message(message)
-      Array(message.fetch("content", [])).filter_map do |content|
-        content["text"] if content["type"] == "text"
-      end.join
+      text_content = Array(message.fetch("content", [])).select { |content| content["type"] == "text" }
+      final_answer = text_content.select { |content| text_signature_phase(content["textSignature"]) == "final_answer" }
+      payload = if final_answer.empty?
+        text_content.reverse.find { |content| !content["text"].to_s.strip.empty? }.to_h["text"]
+      else
+        final_answer.map { |content| content["text"] }.join
+      end
+      payload.to_s
+    end
+
+    def text_signature_phase(signature)
+      return nil if signature.to_s.empty?
+
+      JSON.parse(signature).fetch("phase", nil)
+    rescue JSON::ParserError
+      nil
     end
 
     def extract_model_name(payload)
