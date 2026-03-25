@@ -4,21 +4,43 @@ module PumaRelease
   class VersionRecommender
     SYSTEM_PROMPT = <<~PROMPT.strip
       You are deciding the semantic version bump for the next Puma release.
-      Recommend major if any relevant PR in the release range has the 'breaking change' label.
-      Otherwise recommend minor if any PR or commit looks like a feature, new option, new hook,
-      new capability, or other user-facing enhancement. Otherwise recommend patch.
-      When deciding between patch and minor, prefer minor.
+
+      The 'breaking change' label on a PR means a major bump is DEFINITELY required. However,
+      the absence of that label does not mean a major bump isn't warranted — it just means no
+      one explicitly flagged it. You must independently assess every PR and commit for potential
+      breaking changes regardless of labels.
+
+      A breaking change is anything that could require users to update their code, configuration,
+      or deployment when upgrading. Be expansive: consider changes to public APIs, behavior
+      changes in existing options or hooks, changes to default values, removed or renamed
+      configuration, changes to supported Ruby or platform versions, changes to the Rack/HTTP
+      interface, changes to how signals are handled, changes to logging or error output format,
+      changes to gem dependencies, and any other change a user might feel when upgrading.
+
+      Recommend major if the 'breaking change' label is present on any PR, OR if your analysis
+      identifies any likely breaking changes. Otherwise recommend minor if any PR or commit
+      looks like a feature, new option, new hook, new capability, or other user-facing
+      enhancement. Otherwise recommend patch. When deciding between patch and minor, prefer minor.
+
       Return exactly one markdown paragraph for reasoning_markdown, and include direct markdown
       links to the commit URLs that drove the recommendation.
+
+      For breaking_changes, list every potential breaking change you can identify — even ones
+      that seem minor or unlikely to affect most users. Each entry should name the change and
+      briefly explain why it could break something. If you find none, return an empty array.
     PROMPT
 
     SCHEMA = {
       type: "object",
-      required: %w[bump_type reasoning_markdown],
+      required: %w[bump_type reasoning_markdown breaking_changes],
       additionalProperties: false,
       properties: {
         bump_type: { type: "string", enum: %w[patch minor major] },
-        reasoning_markdown: { type: "string", minLength: 1 }
+        reasoning_markdown: { type: "string", minLength: 1 },
+        breaking_changes: {
+          type: "array",
+          items: { type: "string", minLength: 1 }
+        }
       }
     }.freeze
 
@@ -42,6 +64,7 @@ module PumaRelease
       {
         "bump_type" => bump_type,
         "reasoning_markdown" => reasoning,
+        "breaking_changes" => recommendation.fetch("breaking_changes"),
         "model_name" => agent.last_model_name || context.comment_author_model_name
       }
     end

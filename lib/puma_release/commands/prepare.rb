@@ -45,7 +45,9 @@ module PumaRelease
         pr_url = github.create_release_pr("Release v#{new_version}", branch, body: compare_url)
         github.comment_on_pr(pr_url, pr_comment(recommendation, earner))
         release = ensure_draft_release(new_version, branch)
-        context.events.publish(:checkpoint, kind: :wait_for_merge, pr_url:, release_url: release.fetch("url"), branch:)
+        release_url = release.fetch("url")
+        github.update_pr_body(pr_url, "#{compare_url}\n\n#{release_url}")
+        context.events.publish(:checkpoint, kind: :wait_for_merge, pr_url:, release_url:, branch:)
 
         context.ui.info("Release PR created: #{pr_url}")
         context.ui.info("Draft GitHub release ready: #{release.fetch('url')}")
@@ -108,6 +110,15 @@ module PumaRelease
           "",
           recommendation.fetch("reasoning_markdown")
         ]
+
+        breaking_changes = recommendation.fetch("breaking_changes", [])
+        if breaking_changes.any?
+          lines += ["", "## Potential breaking changes", ""]
+          lines += breaking_changes.map { |item| "- #{item}" }
+        else
+          lines += ["", "## Potential breaking changes", "", "_None identified._"]
+        end
+
         return lines.join("\n") unless earner
 
         [*lines, "", "## Codename", "", codename_message(earner)].join("\n")

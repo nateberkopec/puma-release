@@ -57,6 +57,10 @@ module PumaRelease
       ).strip
     end
 
+    def update_pr_body(pr_url, body)
+      context.shell.run("gh", "pr", "edit", pr_url, "--body", body)
+    end
+
     def comment_on_pr(pr_url, body)
       context.shell.run("gh", "pr", "comment", pr_url, "--body", body)
     end
