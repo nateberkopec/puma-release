@@ -50,7 +50,7 @@ module PumaRelease
       output_gh!(
         "pr", "create",
         "--repo", context.release_repo,
-        "--base", "main",
+        "--base", context.base_branch,
         "--head", branch,
         "--title", title,
         "--body", body

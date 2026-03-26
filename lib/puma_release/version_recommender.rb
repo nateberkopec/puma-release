@@ -17,6 +17,72 @@ module PumaRelease
       interface, changes to how signals are handled, changes to logging or error output format,
       changes to gem dependencies, and any other change a user might feel when upgrading.
 
+      ## Puma's public API
+
+      The following are public API surfaces. Changes that alter their behavior, shape, or
+      availability are potentially breaking and must be flagged.
+
+      **HTTP→Rack env mapping.** For the same HTTP input bytes, Puma must produce the same
+      Rack env. This covers REQUEST_METHOD, PATH_INFO, QUERY_STRING, CONTENT_TYPE,
+      CONTENT_LENGTH, HTTP_* headers, SERVER_NAME, SERVER_PORT, SERVER_PROTOCOL, REMOTE_ADDR,
+      GATEWAY_INTERFACE, etc.
+
+      **Puma-specific Rack env extensions.** puma.socket, puma.peercert, and puma.config.
+      Also the standard Rack extensions Puma populates: rack.hijack?, rack.hijack,
+      rack.after_reply, rack.response_finished, rack.early_hints.
+
+      **Configuration DSL.** All methods available in puma.rb / Puma.configure blocks,
+      including lifecycle hooks: before_fork, after_booted, before_worker_boot,
+      before_worker_shutdown, after_worker_fork, after_worker_shutdown, before_restart,
+      before_thread_start, before_thread_exit, out_of_band, lowlevel_error_handler. Changes
+      to hook signatures or timing are breaking. Changes to default values of any option
+      (thread counts, timeouts, etc.) are also breaking.
+
+      **Deprecated hook aliases.** The old-style hooks (on_booted, on_restart, on_stopped,
+      on_worker_boot, on_worker_fork, on_worker_shutdown, on_refork, on_thread_start,
+      on_thread_exit) are deprecated but still supported. Removing them counts as a breaking
+      change even though they are deprecated.
+
+      **CLI interface.** All flags to the puma binary. Adding flags is a new feature (minor);
+      removing or changing the behavior of existing flags is breaking.
+
+      **Plugin interface.** The contract for writing a plugin: Plugin.create, the config(dsl)
+      hook receiving the DSL object, and the start(launcher) hook. Changes to what DSL and
+      Launcher expose to plugins are breaking for plugin authors.
+
+      **Control server REST API.** The HTTP interface exposed via activate_control_app:
+      endpoints /stop, /halt, /restart, /phased-restart, /refork, /stats, /gc, /gc-stats,
+      /thread-backtraces, /status, and their response formats.
+
+      **pumactl CLI.** The pumactl command and its available subcommands. Operators use this
+      in deploy scripts and process supervisors.
+
+      **State file format.** The fields written to the state file: pid, control_url,
+      control_auth_token, running_from. Tools that restart or monitor Puma read this.
+
+      **Puma.stats / Puma.stats_hash output shape.** The structure of the stats JSON.
+      Monitoring integrations parse specific fields; removing or renaming them is breaking.
+
+      **Signal behavior.** How Puma responds to OS signals (TERM, INT, USR1, USR2, HUP) in
+      both single and cluster mode.
+
+      **Supported Ruby and platform versions.** Dropping support for a Ruby version or
+      platform is breaking for users on that version.
+
+      ## Not part of Puma's public API
+
+      The following are implementation details. Changes here are not breaking on their own.
+
+      - Puma::Server (the Ruby class and its API)
+      - Parser classes (Puma::HttpParser, etc.) — the Ruby class API is internal; only the
+        HTTP parsing behavior visible in the Rack env is public
+      - Puma::Launcher, Puma::Runner, Puma::Worker, Puma::ThreadPool, Puma::Reactor,
+        Puma::Client
+      - Puma::Configuration as a Ruby class (the DSL behavior is public; the class is not)
+      - Internal pipe/signal constants (PIPE_WAKEUP, PIPE_BOOT, etc.)
+      - Log message text and format (unless explicitly documented as stable)
+      - Internal gem require paths
+
       Recommend major if the 'breaking change' label is present on any PR, OR if your analysis
       identifies any likely breaking changes. Otherwise recommend minor if any PR or commit
       looks like a feature, new option, new hook, new capability, or other user-facing

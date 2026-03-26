@@ -15,7 +15,8 @@ module PumaRelease
       yes: false,
       live: false,
       debug: false,
-      codename: nil
+      codename: nil,
+      base_branch: nil
     }.freeze
 
     def self.parse(argv)
@@ -33,6 +34,7 @@ module PumaRelease
         opts.on("-y", "--yes", "Skip interactive confirmations") { options[:yes] = true }
         opts.on("--debug", "Enable debug logging") { options[:debug] = true }
         opts.on("--codename NAME", "Set the release codename directly") { |value| options[:codename] = value }
+        opts.on("--base-branch BRANCH", "Base branch for the release (default: current branch)") { |value| options[:base_branch] = value }
       end
 
       remaining = parser.parse(argv)

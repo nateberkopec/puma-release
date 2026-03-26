@@ -24,6 +24,10 @@ module PumaRelease
     def debug? = options.fetch(:debug, false) || env["DEBUG"] == "true"
     def changelog_backend = env.fetch("PUMA_RELEASE_CHANGELOG_BACKEND", options.fetch(:changelog_backend))
     def codename = options.fetch(:codename)
+
+    def base_branch
+      @base_branch ||= options[:base_branch] || shell.output("git", "rev-parse", "--abbrev-ref", "HEAD").strip
+    end
     def agent_cmd = env.fetch("AGENT_CMD", "claude")
     TOOL_URL = "https://github.com/nateberkopec/puma-release"
 

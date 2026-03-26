@@ -17,7 +17,7 @@ module PumaRelease
         context.check_dependencies!("git", "gh", context.agent_binary)
         context.announce_live_mode!
         context.ensure_release_writes_allowed!
-        git_repo.ensure_clean_main!
+        git_repo.ensure_clean_base!
         ensure_green_ci!
 
         last_tag = git_repo.last_tag
@@ -36,10 +36,11 @@ module PumaRelease
         refs = LinkReferenceBuilder.new(context).build(changelog)
         repo_files.prepend_history_section!(new_version, changelog, refs)
         repo_files.update_version!(new_version, bump_type, codename: context.codename)
+        upgrade_guide_path = write_upgrade_guide(release_range, new_version, recommendation, bump_type)
 
         branch = "release-v#{new_version}"
         git_repo.checkout_release_branch!(branch)
-        git_repo.commit_release!(new_version)
+        git_repo.commit_release!(new_version, extra_files: Array(upgrade_guide_path))
         git_repo.push_branch!(branch)
 
         compare_url = "https://github.com/#{context.metadata_repo}/compare/#{last_tag}...#{git_repo.head_sha}"
@@ -92,6 +93,18 @@ module PumaRelease
 
         context.ui.warn("Potential breaking changes:")
         breaking_changes.each { |item| puts "- #{item}" }
+      end
+
+      def write_upgrade_guide(release_range, new_version, recommendation, bump_type)
+        return nil unless bump_type == "major"
+
+        UpgradeGuideWriter.new(
+          context,
+          release_range,
+          new_version:,
+          breaking_changes: recommendation.fetch("breaking_changes", []),
+          codename: context.codename
+        ).call
       end
 
       def prepare_changelog(release_range, new_version, last_tag)

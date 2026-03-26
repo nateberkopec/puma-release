@@ -13,17 +13,18 @@ module PumaRelease
     def head_sha = shell.output("git", "rev-parse", "HEAD").strip
     def commits_since(tag) = shell.output("git", "rev-list", "--count", "#{tag}..HEAD").strip.to_i
 
-    def ensure_clean_main!
-      raise Error, "Must be on 'main' branch (currently on '#{current_branch}')" unless current_branch == "main"
+    def ensure_clean_base!
+      base = context.base_branch
+      raise Error, "Must be on '#{base}' branch (currently on '#{current_branch}')" unless current_branch == base
       raise Error, "Working directory not clean. Commit or stash first." unless clean?
 
       run_git!("fetch", metadata_remote, "--quiet")
-      remote_sha = shell.output("git", "rev-parse", "#{metadata_remote}/main").strip
-      raise Error, "Local main differs from #{metadata_remote}/main. Pull or push first." unless head_sha == remote_sha
+      remote_sha = shell.output("git", "rev-parse", "#{metadata_remote}/#{base}").strip
+      raise Error, "Local #{base} differs from #{metadata_remote}/#{base}. Pull or push first." unless head_sha == remote_sha
     end
 
     def last_tag
-      tags = shell.output("git", "tag", "--sort=-v:refname").lines(chomp: true)
+      tags = shell.output("git", "tag", "--sort=-v:refname", "--merged", "HEAD").lines(chomp: true)
       tags.find { |tag| tag.match?(/^v\d/) } || raise(Error, "Could not determine last release tag")
     end
 
@@ -58,8 +59,8 @@ module PumaRelease
       run_git!("checkout", "-b", branch)
     end
 
-    def commit_release!(version)
-      run_git!("add", context.version_file.to_s, context.history_file.to_s)
+    def commit_release!(version, extra_files: [])
+      run_git!("add", context.version_file.to_s, context.history_file.to_s, *extra_files.map(&:to_s))
       run_git!("commit", "-S", "-m", "Release v#{version}")
     end
 

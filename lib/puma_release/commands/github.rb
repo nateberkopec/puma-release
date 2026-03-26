@@ -16,7 +16,7 @@ module PumaRelease
         context.check_dependencies!("git", "gh")
         context.announce_live_mode!
         context.ensure_release_writes_allowed!
-        git_repo.ensure_clean_main!
+        git_repo.ensure_clean_base!
         version = repo_files.current_version
         tag = git_repo.release_tag(version)
         proposal_tag = git_repo.proposal_tag(version)

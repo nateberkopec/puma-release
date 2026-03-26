@@ -43,7 +43,7 @@ module PumaRelease
       end
 
       def wait_for_merge
-        context.ui.info("A release PR is already in flight. Merge it, update local main, and rerun puma-release.")
+        context.ui.info("A release PR is already in flight. Merge it, update local #{context.base_branch}, and rerun puma-release.")
         :wait_for_merge
       end
     end
