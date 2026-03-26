@@ -34,6 +34,7 @@ module PumaRelease
 
     def version_file = repo_dir.join("lib/puma/const.rb")
     def history_file = repo_dir.join("History.md")
+    def security_file = repo_dir.join("SECURITY.md")
 
     def release_repo
       @release_repo ||= options[:release_repo] || infer_release_repo

@@ -24,6 +24,17 @@ module PumaRelease
       "v#{version} - #{current_code_name}"
     end
 
+    def update_security!(new_version)
+      major = new_version.split(".").first.to_i
+      new_majors = [major, major - 1]
+      i = -1
+      updated = context.security_file.read.gsub(/Latest release in \d+\.x/) do
+        i += 1
+        i < new_majors.size ? "Latest release in #{new_majors[i]}.x" : $&
+      end
+      context.security_file.write(updated)
+    end
+
     def update_version!(new_version, bump_type, codename: nil)
       updated = content.sub(/PUMA_VERSION = VERSION = ".*"/, "PUMA_VERSION = VERSION = \"#{new_version}\"")
       unless bump_type == "patch"

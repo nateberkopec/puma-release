@@ -47,6 +47,62 @@ class RepoFilesTest < Minitest::Test
     end
   end
 
+  def test_update_security_updates_supported_versions_for_major_release
+    temp_repo do |repo|
+      repo.join("SECURITY.md").write(<<~MD)
+        # Security Policy
+
+        ## Supported Versions
+
+        | Version       | Supported  |
+        | :------------ | :--------: |
+        | Latest release in 7.x | ✅ |
+        | Latest release in 6.x | ✅ |
+        | All other releases    | ❌ |
+
+        ## Reporting a Vulnerability
+
+        Contact [Evan Phoenix.](https://github.com/evanphx)
+      MD
+      context = OpenStruct.new(security_file: repo.join("SECURITY.md"))
+
+      PumaRelease::RepoFiles.new(context).update_security!("8.0.0")
+
+      content = repo.join("SECURITY.md").read
+      assert_includes content, "Latest release in 8.x"
+      assert_includes content, "Latest release in 7.x"
+      refute_includes content, "Latest release in 6.x"
+    end
+  end
+
+  def test_update_security_preserves_rest_of_file
+    temp_repo do |repo|
+      repo.join("SECURITY.md").write(<<~MD)
+        # Security Policy
+
+        ## Supported Versions
+
+        | Version       | Supported  |
+        | :------------ | :--------: |
+        | Latest release in 7.x | ✅ |
+        | Latest release in 6.x | ✅ |
+        | All other releases    | ❌ |
+
+        ## Reporting a Vulnerability
+
+        Contact [Evan Phoenix.](https://github.com/evanphx)
+      MD
+      context = OpenStruct.new(security_file: repo.join("SECURITY.md"))
+
+      PumaRelease::RepoFiles.new(context).update_security!("8.0.0")
+
+      content = repo.join("SECURITY.md").read
+      assert_includes content, "# Security Policy"
+      assert_includes content, "All other releases"
+      assert_includes content, "Contact [Evan Phoenix.](https://github.com/evanphx)"
+    end
+  end
+
   def test_prepend_history_section_inserts_new_entry_and_refs
     temp_repo do |repo|
       repo.join("lib/puma/const.rb").write("PUMA_VERSION = VERSION = \"7.2.0\"\n")

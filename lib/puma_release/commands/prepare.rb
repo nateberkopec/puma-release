@@ -37,10 +37,11 @@ module PumaRelease
         repo_files.prepend_history_section!(new_version, changelog, refs)
         repo_files.update_version!(new_version, bump_type, codename: context.codename)
         upgrade_guide_path = write_upgrade_guide(release_range, new_version, recommendation, bump_type)
+        security_file = update_security_policy(new_version, bump_type)
 
         branch = "release-v#{new_version}"
         git_repo.checkout_release_branch!(branch)
-        git_repo.commit_release!(new_version, extra_files: Array(upgrade_guide_path))
+        git_repo.commit_release!(new_version, extra_files: [*Array(upgrade_guide_path), *Array(security_file)])
         git_repo.push_branch!(branch)
 
         compare_url = "https://github.com/#{context.metadata_repo}/compare/#{last_tag}...#{git_repo.head_sha}"
@@ -93,6 +94,13 @@ module PumaRelease
 
         context.ui.warn("Potential breaking changes:")
         breaking_changes.each { |item| puts "- #{item}" }
+      end
+
+      def update_security_policy(new_version, bump_type)
+        return nil unless bump_type == "major"
+
+        repo_files.update_security!(new_version)
+        context.security_file
       end
 
       def write_upgrade_guide(release_range, new_version, recommendation, bump_type)
