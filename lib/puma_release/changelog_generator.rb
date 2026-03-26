@@ -31,11 +31,11 @@ module PumaRelease
                 type: "string",
                 enum: ["Features", "Bugfixes", "Performance", "Refactor", "Docs", "CI", "Breaking changes"]
               },
-              description: { type: "string", minLength: 1 },
+              description: {type: "string", minLength: 1},
               pr_numbers: {
                 type: "array",
                 minItems: 1,
-                items: { type: "integer", minimum: 1 }
+                items: {type: "integer", minimum: 1}
               }
             }
           }
@@ -129,7 +129,7 @@ module PumaRelease
       def render_entry(entry)
         pr_refs = entry.fetch("pr_numbers").uniq.map { |number| "[#" + number.to_s + "]" }
         description = entry.fetch("description").strip.gsub(/\s+/, " ").sub(/[.。]\z/, "")
-        "  * #{description} (#{pr_refs.join(', ')})"
+        "  * #{description} (#{pr_refs.join(", ")})"
       end
 
       def agent = @agent ||= AgentClient.new(context)
@@ -162,7 +162,7 @@ module PumaRelease
 
       def github_env
         token = context.github_token
-        token.empty? ? {} : { "GITHUB_TOKEN" => token }
+        token.empty? ? {} : {"GITHUB_TOKEN" => token}
       end
     end
   end

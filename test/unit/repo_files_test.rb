@@ -56,7 +56,7 @@ class RepoFilesTest < Minitest::Test
       PumaRelease::RepoFiles.new(context).prepend_history_section!("7.2.1", "* Bugfixes\n  * New fix ([#2])", "[#2]:https://example.test/2")
 
       updated = repo.join("History.md").read
-      assert_includes updated, "## 7.2.1 / #{Date.today.strftime('%Y-%m-%d')}"
+      assert_includes updated, "## 7.2.1 / #{Date.today.strftime("%Y-%m-%d")}"
       assert_match(/\[#2\]:https:\/\/example\.test\/2\n\[#1\]:https:\/\/example\.test\/1/, updated)
     end
   end

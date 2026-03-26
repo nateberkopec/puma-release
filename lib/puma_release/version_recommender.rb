@@ -101,11 +101,11 @@ module PumaRelease
       required: %w[bump_type reasoning_markdown breaking_changes],
       additionalProperties: false,
       properties: {
-        bump_type: { type: "string", enum: %w[patch minor major] },
-        reasoning_markdown: { type: "string", minLength: 1 },
+        bump_type: {type: "string", enum: %w[patch minor major]},
+        reasoning_markdown: {type: "string", minLength: 1},
         breaking_changes: {
           type: "array",
-          items: { type: "string", minLength: 1 }
+          items: {type: "string", minLength: 1}
         }
       }
     }.freeze

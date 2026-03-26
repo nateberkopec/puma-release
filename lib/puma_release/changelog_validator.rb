@@ -20,7 +20,7 @@ module PumaRelease
       state = :category
       current_category = nil
       last_order = 0
-      counts = { categories: 0, items: 0 }
+      counts = {categories: 0, items: 0}
       seen = {}
       errors = []
 
@@ -49,10 +49,10 @@ module PumaRelease
       errors << "Line #{line_number}: inline markdown links are not allowed; use reference-style PR refs like ([#123])." if line.match?(INLINE_LINK_REGEX)
       return handle_item(line, line_number, state, counts, errors) if line.match?(ITEM_REGEX)
 
-      if line.start_with?("*")
-        errors << "Line #{line_number}: unsupported category. Allowed categories: #{CATEGORY_ORDER.keys.join(', ')}."
+      errors << if line.start_with?("*")
+        "Line #{line_number}: unsupported category. Allowed categories: #{CATEGORY_ORDER.keys.join(", ")}."
       else
-        errors << "Line #{line_number}: unexpected content. Expected a category heading or an item like '  * Description ([#123])'."
+        "Line #{line_number}: unexpected content. Expected a category heading or an item like '  * Description ([#123])'."
       end
     end
 
@@ -61,7 +61,7 @@ module PumaRelease
       order = CATEGORY_ORDER.fetch(category)
       errors << "Line #{line_number}: category '* #{current_category}' must contain at least one item before the next category." if state == :item
       errors << "Line #{line_number}: blank line required between categories." if state == :item_or_blank
-      errors << "Line #{line_number}: categories must appear in this order: #{CATEGORY_ORDER.keys.join(', ')}." if order < last_order
+      errors << "Line #{line_number}: categories must appear in this order: #{CATEGORY_ORDER.keys.join(", ")}." if order < last_order
       errors << "Line #{line_number}: duplicate category '* #{category}'." if seen[category]
       counts[:categories] += 1
     end

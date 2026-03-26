@@ -95,7 +95,7 @@ class PrepareTest < Minitest::Test
     github.define_singleton_method(:release) { |_tag| nil }
     github.define_singleton_method(:create_release) do |tag, body, title:, draft:, target:|
       calls << [:create_release, tag, body, title, draft, target]
-      { "name" => title, "body" => body, "targetCommitish" => target }
+      {"name" => title, "body" => body, "targetCommitish" => target}
     end
     github.define_singleton_method(:edit_release_target) { |_tag, _target| flunk "edit_release_target should not be called when the draft release target already matches" }
     github.define_singleton_method(:edit_release_title) { |_tag, _title| flunk "edit_release_title should not be called when the title already matches" }

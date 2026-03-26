@@ -2,7 +2,6 @@
 
 require "minitest/autorun"
 require "tmpdir"
-require "pathname"
 require "ostruct"
 require_relative "../lib/puma_release"
 

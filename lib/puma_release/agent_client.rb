@@ -37,7 +37,7 @@ module PumaRelease
 
     def ask_pi_for_json(prompt, system_prompt:, schema:)
       payload = nil
-      progress = { ticks: 0, shown: false }
+      progress = {ticks: 0, shown: false}
 
       context.shell.stream_json_events(*pi_command(json_prompt(prompt, schema), system_prompt:, mode: "json")) do |event|
         case event["type"]
@@ -89,7 +89,7 @@ module PumaRelease
       text_content = Array(message.fetch("content", [])).select { |content| content["type"] == "text" }
       final_answer = text_content.select { |content| text_signature_phase(content["textSignature"]) == "final_answer" }
       payload = if final_answer.empty?
-        text_content.reverse.find { |content| !content["text"].to_s.strip.empty? }.to_h["text"]
+        text_content.rfind { |content| !content["text"].to_s.strip.empty? }.to_h["text"]
       else
         final_answer.map { |content| content["text"] }.join
       end

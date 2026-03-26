@@ -52,7 +52,7 @@ module PumaRelease
         context.events.publish(:checkpoint, kind: :wait_for_merge, pr_url:, release_url:, branch:)
 
         context.ui.info("Release PR created: #{pr_url}")
-        context.ui.info("Draft GitHub release ready: #{release.fetch('url')}")
+        context.ui.info("Draft GitHub release ready: #{release.fetch("url")}")
         context.ui.warn(waiting_on_codename_message(earner)) if earner
         context.ui.info("STOP: review and merge the PR, then rerun puma-release.")
         :wait_for_merge
@@ -123,7 +123,7 @@ module PumaRelease
         release ||= github.create_release(tag, body, title:, draft: true, target: branch)
         release = github.edit_release_target(tag, branch) if release.fetch("targetCommitish", "") != branch
         release = github.edit_release_title(tag, title) if release.fetch("name", "") != title
-        release.fetch("body", "") == body ? release : github.edit_release_notes(tag, body)
+        (release.fetch("body", "") == body) ? release : github.edit_release_notes(tag, body)
       end
 
       def pr_comment(recommendation, earner)
@@ -132,7 +132,7 @@ module PumaRelease
           "",
           "## Version bump recommendation",
           "",
-          "Recommended bump: **#{recommendation.fetch('bump_type')}**",
+          "Recommended bump: **#{recommendation.fetch("bump_type")}**",
           "",
           recommendation.fetch("reasoning_markdown")
         ]

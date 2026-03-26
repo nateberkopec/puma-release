@@ -32,7 +32,7 @@ module PumaRelease
         if item.fetch(:type) == "pr"
           labels = item.fetch(:labels)
           lines << "- PR ##{item.fetch(:number)} #{item.fetch(:title)}"
-          lines << "  Labels: #{labels.empty? ? 'none' : labels.join(', ')}"
+          lines << "  Labels: #{labels.empty? ? "none" : labels.join(", ")}"
           lines << "  PR URL: #{item.fetch(:url)}"
           lines << "  Merge commit: #{item.fetch(:commit_url)}"
         else
@@ -48,7 +48,7 @@ module PumaRelease
     def commits
       shell.output("git", "log", "--reverse", "--format=%H%x09%s", "#{last_tag}..HEAD").lines(chomp: true).map do |line|
         sha, subject = line.split("\t", 2)
-        { sha:, subject:, commit_url: "https://github.com/#{context.metadata_repo}/commit/#{sha}" }
+        {sha:, subject:, commit_url: "https://github.com/#{context.metadata_repo}/commit/#{sha}"}
       end
     end
 

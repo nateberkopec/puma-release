@@ -28,6 +28,7 @@ module PumaRelease
     def base_branch
       @base_branch ||= options[:base_branch] || shell.output("git", "rev-parse", "--abbrev-ref", "HEAD").strip
     end
+
     def agent_cmd = env.fetch("AGENT_CMD", "claude")
     TOOL_URL = "https://github.com/nateberkopec/puma-release"
 
@@ -51,7 +52,7 @@ module PumaRelease
 
     def check_dependencies!(*commands)
       missing = commands.flatten.compact.uniq.reject { |command| shell.available?(command) }
-      raise Error, "Missing required dependencies: #{missing.join(' ')}" unless missing.empty?
+      raise Error, "Missing required dependencies: #{missing.join(" ")}" unless missing.empty?
     end
 
     def comment_author_model_name(fallback: env["AGENT_MODEL_NAME"])
@@ -78,8 +79,8 @@ module PumaRelease
       return unless release_repo == metadata_repo
 
       raise Error,
-            "Refusing to write release state to #{release_repo} without --live. " \
-            "Use --release-repo OWNER/REPO to target a fork, or pass --live to operate on #{metadata_repo}."
+        "Refusing to write release state to #{release_repo} without --live. " \
+        "Use --release-repo OWNER/REPO to target a fork, or pass --live to operate on #{metadata_repo}."
     end
 
     def confirm_live_github_write!(description)

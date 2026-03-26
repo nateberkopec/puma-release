@@ -112,12 +112,12 @@ class GithubCommandTest < Minitest::Test
       github.define_singleton_method(:release) do |tag|
         case tag
         when "v7.2.0" then nil
-        when "v7.2.0-proposal" then { "isDraft" => true, "targetCommitish" => "release-v7.2.0", "name" => "v7.2.0", "body" => "* Bugfixes\n  * One fix ([#1])", "url" => "https://example.test/release" }
+        when "v7.2.0-proposal" then {"isDraft" => true, "targetCommitish" => "release-v7.2.0", "name" => "v7.2.0", "body" => "* Bugfixes\n  * One fix ([#1])", "url" => "https://example.test/release"}
         end
       end
       github.define_singleton_method(:retag_release) do |old_tag, new_tag, target:|
         calls << [:retag_release, old_tag, new_tag, target]
-        { "isDraft" => true, "targetCommitish" => target, "name" => "v7.2.0", "body" => "* Bugfixes\n  * One fix ([#1])", "url" => "https://example.test/release" }
+        {"isDraft" => true, "targetCommitish" => target, "name" => "v7.2.0", "body" => "* Bugfixes\n  * One fix ([#1])", "url" => "https://example.test/release"}
       end
       github.define_singleton_method(:edit_release_target) { |_tag, _target| flunk "edit_release_target should not be called when retag_release already set the final target" }
       github.define_singleton_method(:edit_release_title) { |_tag, _title| flunk "edit_release_title should not be called when the release title already matches" }
@@ -125,7 +125,7 @@ class GithubCommandTest < Minitest::Test
       github.define_singleton_method(:upload_release_assets) { |tag, *paths| calls << [:upload_release_assets, tag, paths.map { |path| File.basename(path) }] }
       github.define_singleton_method(:publish_release) do |tag|
         calls << [:publish_release, tag]
-        { "isDraft" => false, "url" => "https://example.test/release" }
+        {"isDraft" => false, "url" => "https://example.test/release"}
       end
       github.define_singleton_method(:delete_release) { |_tag, allow_failure:| calls << [:delete_release, allow_failure] }
       github.define_singleton_method(:delete_tag_ref) { |tag, allow_failure:| calls << [:delete_tag_ref, tag, allow_failure] }
@@ -147,7 +147,7 @@ class GithubCommandTest < Minitest::Test
       assert_includes calls, [:upload_release_assets, "v7.2.0", ["puma-7.2.0.gem", "puma-7.2.0-java.gem"]]
       assert_includes calls, [:publish_release, "v7.2.0"]
       assert_includes calls, [:delete_tag_ref, "v7.2.0-proposal", true]
-      assert_equal [[:release_published, { tag: "v7.2.0", url: "https://example.test/release" }]], published
+      assert_equal [[:release_published, {tag: "v7.2.0", url: "https://example.test/release"}]], published
     end
   end
 end

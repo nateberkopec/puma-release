@@ -18,7 +18,7 @@ class ContributorResolverTest < Minitest::Test
     git_repo = PumaRelease::GitRepo.new(OpenStruct.new(shell:))
     github = Object.new
     def github.commit_author_login(_repo, sha)
-      { "abc123" => "nateberkopec", "def456" => "nateberkopec" }.fetch(sha)
+      {"abc123" => "nateberkopec", "def456" => "nateberkopec"}.fetch(sha)
     end
 
     earner = PumaRelease::ContributorResolver.new(context, git_repo:, github:).codename_earner("v7.2.0")

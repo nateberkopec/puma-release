@@ -42,7 +42,7 @@ module PumaRelease
     end
 
     def prepend_history_section!(version, changelog, refs)
-      header = "## #{version} / #{Date.today.strftime('%Y-%m-%d')}"
+      header = "## #{version} / #{Date.today.strftime("%Y-%m-%d")}"
       body = [header, changelog.strip, context.history_file.read].join("\n\n")
       context.history_file.write(body)
       insert_link_refs!(refs)

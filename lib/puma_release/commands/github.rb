@@ -35,7 +35,7 @@ module PumaRelease
         release = github.publish_release(tag) if release.fetch("isDraft", false)
         cleanup_proposal_release!(proposal_tag)
         context.events.publish(:release_published, tag:, url: release.fetch("url"))
-        context.ui.info("GitHub release published: #{release.fetch('url')}")
+        context.ui.info("GitHub release published: #{release.fetch("url")}")
         :complete
       end
 
@@ -67,7 +67,7 @@ module PumaRelease
           context.repo_dir.join("pkg", "puma-#{version}-java.gem")
         ]
         missing = paths.reject(&:file?)
-        raise Error, "Missing release artifact(s): #{missing.join(' ')}" unless missing.empty?
+        raise Error, "Missing release artifact(s): #{missing.join(" ")}" unless missing.empty?
 
         paths.map(&:to_s)
       end

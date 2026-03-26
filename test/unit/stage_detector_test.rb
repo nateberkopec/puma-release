@@ -16,7 +16,7 @@ class StageDetectorTest < Minitest::Test
   end
 
   def test_returns_github_when_release_is_still_pending
-    detector = build_detector(release: { "isDraft" => true, "assets" => [] })
+    detector = build_detector(release: {"isDraft" => true, "assets" => []})
 
     assert_equal :github, detector.next_step
   end
@@ -64,8 +64,8 @@ class StageDetectorTest < Minitest::Test
     {
       "isDraft" => false,
       "assets" => [
-        { "name" => "puma-7.2.1.gem" },
-        { "name" => "puma-7.2.1-java.gem" }
+        {"name" => "puma-7.2.1.gem"},
+        {"name" => "puma-7.2.1-java.gem"}
       ]
     }
   end

@@ -10,18 +10,18 @@ class AgentClientTest < Minitest::Test
 
       def stream_json_events(*command, **)
         @command = command
-        yield({ "type" => "message_update", "assistantMessageEvent" => { "type" => "text_delta", "delta" => "{" } })
+        yield({"type" => "message_update", "assistantMessageEvent" => {"type" => "text_delta", "delta" => "{"}})
         yield({
-                "type" => "message_end",
-                "message" => {
-                  "role" => "assistant",
-                  "provider" => "openai-codex",
-                  "model" => "gpt-5.4",
-                  "content" => [
-                    { "type" => "text", "text" => '{"bump_type":"patch","reasoning_markdown":"Because of [this commit](https://github.com/puma/puma/commit/abc)."}' }
-                  ]
-                }
-              })
+          "type" => "message_end",
+          "message" => {
+            "role" => "assistant",
+            "provider" => "openai-codex",
+            "model" => "gpt-5.4",
+            "content" => [
+              {"type" => "text", "text" => '{"bump_type":"patch","reasoning_markdown":"Because of [this commit](https://github.com/puma/puma/commit/abc)."}'}
+            ]
+          }
+        })
       end
 
       def split(command)
@@ -41,8 +41,8 @@ class AgentClientTest < Minitest::Test
         type: "object",
         required: %w[bump_type reasoning_markdown],
         properties: {
-          bump_type: { type: "string" },
-          reasoning_markdown: { type: "string" }
+          bump_type: {type: "string"},
+          reasoning_markdown: {type: "string"}
         }
       }
     )
@@ -67,27 +67,27 @@ class AgentClientTest < Minitest::Test
   def test_pi_mode_uses_final_answer_text_when_commentary_is_present
     shell = Class.new do
       def stream_json_events(*, **)
-        yield({ "type" => "message_update", "assistantMessageEvent" => { "type" => "text_delta", "delta" => "I" } })
+        yield({"type" => "message_update", "assistantMessageEvent" => {"type" => "text_delta", "delta" => "I"}})
         yield({
-                "type" => "message_end",
-                "message" => {
-                  "role" => "assistant",
-                  "provider" => "openai-codex",
-                  "model" => "gpt-5.4",
-                  "content" => [
-                    {
-                      "type" => "text",
-                      "text" => "I'm thinking through the release range.",
-                      "textSignature" => '{"v":1,"phase":"commentary"}'
-                    },
-                    {
-                      "type" => "text",
-                      "text" => '{"bump_type":"minor","reasoning_markdown":"Because of [this commit](https://github.com/puma/puma/commit/abc)."}',
-                      "textSignature" => '{"v":1,"phase":"final_answer"}'
-                    }
-                  ]
-                }
-              })
+          "type" => "message_end",
+          "message" => {
+            "role" => "assistant",
+            "provider" => "openai-codex",
+            "model" => "gpt-5.4",
+            "content" => [
+              {
+                "type" => "text",
+                "text" => "I'm thinking through the release range.",
+                "textSignature" => '{"v":1,"phase":"commentary"}'
+              },
+              {
+                "type" => "text",
+                "text" => '{"bump_type":"minor","reasoning_markdown":"Because of [this commit](https://github.com/puma/puma/commit/abc)."}',
+                "textSignature" => '{"v":1,"phase":"final_answer"}'
+              }
+            ]
+          }
+        })
       end
 
       def split(command)
@@ -105,8 +105,8 @@ class AgentClientTest < Minitest::Test
         type: "object",
         required: %w[bump_type reasoning_markdown],
         properties: {
-          bump_type: { type: "string" },
-          reasoning_markdown: { type: "string" }
+          bump_type: {type: "string"},
+          reasoning_markdown: {type: "string"}
         }
       }
     )

@@ -22,7 +22,7 @@ module PumaRelease
         count, name, email = line.match(/^\s*(\d+)\s+(.+?)\s+<([^>]+)>$/)&.captures
         next unless count
 
-        { count: count.to_i, name:, email: }
+        {count: count.to_i, name:, email:}
       end.compact
     end
 

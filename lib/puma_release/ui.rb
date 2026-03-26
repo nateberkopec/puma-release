@@ -12,8 +12,8 @@ module PumaRelease
 
     def info(message) = $stdout.puts(colorize(:info, message))
     def warn(message) = $stdout.puts(colorize(:warn, message))
-    def error(message) = $stderr.puts(colorize(:error, message))
-    def debug(message) = $stderr.puts(colorize(:debug, "[DEBUG] #{message}"))
+    def error(message) = warn(colorize(:error, message))
+    def debug(message) = warn(colorize(:debug, "[DEBUG] #{message}"))
 
     def confirm(message, default: true)
       return default unless $stdin.tty?

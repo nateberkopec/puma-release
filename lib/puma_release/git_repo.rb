@@ -48,7 +48,7 @@ module PumaRelease
     def commit_authors_since(tag)
       shell.output("git", "log", "--format=%H%x09%aN%x09%aE", "#{tag}..HEAD").lines(chomp: true).map do |line|
         sha, name, email = line.split("\t", 3)
-        { sha:, name:, email: }
+        {sha:, name:, email:}
       end
     end
 
