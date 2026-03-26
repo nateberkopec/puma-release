@@ -53,9 +53,11 @@ module PumaRelease
     end
 
     def call
+      resolved = backend
+      context.ui.info("Changelog backend: #{resolved.class.name.split("::").last.delete_suffix("Backend").downcase}")
       5.times do |index|
         context.ui.info("Generating changelog (attempt #{index + 1}/5)...")
-        changelog = backend.call.strip
+        changelog = resolved.call.strip
         errors = validator.validate(changelog)
         return changelog if errors.empty?
 
