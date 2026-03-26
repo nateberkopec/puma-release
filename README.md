@@ -12,7 +12,7 @@ Automate Puma releases from a local Puma checkout.
 - [communique](https://github.com/basecamp/communique) (optional) — if available with `ANTHROPIC_API_KEY` set, it is used instead of the AI agent for changelog generation
 
 ```sh
-bundle install
+printf "source 'https://rubygems.org'\ngem 'puma-release'\n" > Gemfile && bundle install
 ```
 
 ## Quickstart
