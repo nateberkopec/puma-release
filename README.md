@@ -8,7 +8,8 @@ Automate Puma releases from a local Puma checkout.
 
 - `git`, `gh`, `bundle`
 - GPG signing configured for commits and tags
-- An AI agent set via `AGENT_CMD` (defaults to `claude`) for changelog generation
+- An AI agent set via `AGENT_CMD` (defaults to `claude`) for changelog and version bump generation
+- [communique](https://github.com/basecamp/communique) (optional) — if available with `ANTHROPIC_API_KEY` set, it is used instead of the AI agent for changelog generation
 
 ```sh
 bundle install
@@ -90,8 +91,6 @@ puma-release [options] [command]
 | Variable | Description |
 |----------|-------------|
 | `AGENT_CMD` | AI agent command. Defaults to `claude`. Set to `pi` to use pi with `--thinking xhigh` |
-| `PUMA_RELEASE_JRUBY_BUILD_COMMAND` | Override for building the JRuby gem |
-| `CHANGELOG_MAX_ATTEMPTS` | Retry count for changelog generation |
 
 ## Safety model
 

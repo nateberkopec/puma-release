@@ -11,7 +11,7 @@ class GithubCommandTest < Minitest::Test
     context.define_singleton_method(:ensure_release_writes_allowed!) {}
 
     git_repo = Object.new
-    git_repo.define_singleton_method(:ensure_clean_main!) { calls << :clean_main }
+    git_repo.define_singleton_method(:ensure_clean_base!) { calls << :clean_main }
 
     repo_files = Object.new
     repo_files.define_singleton_method(:current_version) { raise PumaRelease::Error, "stop" }
@@ -46,7 +46,7 @@ class GithubCommandTest < Minitest::Test
       context.ui.define_singleton_method(:info) { |_message| }
 
       git_repo = Object.new
-      git_repo.define_singleton_method(:ensure_clean_main!) {}
+      git_repo.define_singleton_method(:ensure_clean_base!) {}
       git_repo.define_singleton_method(:release_tag) { |_version| "v7.2.0" }
       git_repo.define_singleton_method(:proposal_tag) { |_version| "v7.2.0-proposal" }
       git_repo.define_singleton_method(:ensure_release_tag_pushed!) { |_tag| raise PumaRelease::Error, "stop" }
@@ -95,7 +95,7 @@ class GithubCommandTest < Minitest::Test
       context.ui.define_singleton_method(:info) { |message| infos << message }
 
       git_repo = Object.new
-      git_repo.define_singleton_method(:ensure_clean_main!) {}
+      git_repo.define_singleton_method(:ensure_clean_base!) {}
       git_repo.define_singleton_method(:release_tag) { |_version| "v7.2.0" }
       git_repo.define_singleton_method(:proposal_tag) { |_version| "v7.2.0-proposal" }
       git_repo.define_singleton_method(:ensure_release_tag_pushed!) { |_tag| }

@@ -45,7 +45,7 @@ class GitHubClientTest < Minitest::Test
     )
 
     confirmations = []
-    context = OpenStruct.new(shell:, release_repo: "puma/puma")
+    context = OpenStruct.new(shell:, release_repo: "puma/puma", base_branch: "main")
     context.define_singleton_method(:confirm_live_gh_command!) { |*command| confirmations << command }
 
     pr_url = PumaRelease::GitHubClient.new(context).create_release_pr("Release v7.3.0", "release-v7.3.0", body: "compare")

@@ -9,7 +9,6 @@ module PumaRelease
     end
 
     def build_jruby_gem(version)
-      return run_override(version) unless override.to_s.empty?
       return build_with_mise(version) if context.shell.available?("mise")
       return build_with_local_jruby(version) if context.shell.available?("jruby")
 
@@ -42,17 +41,6 @@ module PumaRelease
 
       context.ui.warn("mise could not determine a JRuby version.")
       nil
-    end
-
-    def run_override(version)
-      context.ui.info("Building JRuby gem with override command...")
-      context.shell.run(*context.shell.split(override))
-      context.ui.info("Built: pkg/puma-#{version}-java.gem")
-      true
-    end
-
-    def override
-      context.env["PUMA_RELEASE_JRUBY_BUILD_COMMAND"]
     end
   end
 end

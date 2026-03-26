@@ -53,9 +53,8 @@ module PumaRelease
     end
 
     def call
-      attempts = context.env.fetch("CHANGELOG_MAX_ATTEMPTS", "5").to_i
-      attempts.times do |index|
-        context.ui.info("Generating changelog (attempt #{index + 1}/#{attempts})...")
+      5.times do |index|
+        context.ui.info("Generating changelog (attempt #{index + 1}/5)...")
         changelog = backend.call.strip
         errors = validator.validate(changelog)
         return changelog if errors.empty?
@@ -63,7 +62,7 @@ module PumaRelease
         context.ui.warn("Generated changelog did not match the required format:")
         errors.each { |message| context.ui.warn(message) }
       end
-      raise Error, "Could not generate a valid changelog after #{attempts} attempts."
+      raise Error, "Could not generate a valid changelog after 5 attempts."
     end
 
     private

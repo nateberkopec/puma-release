@@ -51,7 +51,7 @@ class GitRepoTest < Minitest::Test
     assert_equal [["git", "push", "-u", "mine", "release-v7.3.0"]], confirmations
   end
 
-  def test_ensure_clean_main_prefers_metadata_repo_remote_when_present
+  def test_ensure_clean_base_prefers_metadata_repo_remote_when_present
     shell = FakeShell.new(
       {
         ["git", "rev-parse", "--abbrev-ref", "HEAD"] => "main\n",
@@ -64,9 +64,9 @@ class GitRepoTest < Minitest::Test
       }
     )
 
-    context = OpenStruct.new(shell:, release_repo: "nateberkopec/puma", metadata_repo: "puma/puma")
+    context = OpenStruct.new(shell:, release_repo: "nateberkopec/puma", metadata_repo: "puma/puma", base_branch: "main")
 
-    PumaRelease::GitRepo.new(context).ensure_clean_main!
+    PumaRelease::GitRepo.new(context).ensure_clean_base!
 
     assert_includes shell.commands, ["git", "fetch", "upstream", "--quiet"]
   end
