@@ -12,7 +12,7 @@ Gem::Specification.new do |spec|
   spec.description = "Standalone CLI for running Puma's release process against a Puma checkout."
   spec.homepage = "https://github.com/nateberkopec/puma-release"
   spec.license = "MIT"
-  spec.required_ruby_version = ">= 3.3"
+  spec.required_ruby_version = ">= 4.0"
 
   spec.files = Dir["LICENSE", "README.md", "exe/*", "lib/**/*.rb", "test/**/*.rb"]
   spec.bindir = "exe"
