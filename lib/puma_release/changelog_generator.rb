@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "tempfile"
+
 module PumaRelease
   class ChangelogGenerator
     SYSTEM_PROMPT = <<~PROMPT.strip
@@ -54,15 +56,17 @@ module PumaRelease
 
     def call
       resolved = backend
+      feedback = nil
       context.ui.info("Changelog backend: #{resolved.class.name.split("::").last.delete_suffix("Backend").downcase}")
       5.times do |index|
         context.ui.info("Generating changelog (attempt #{index + 1}/5)...")
-        changelog = resolved.call.strip
+        changelog = resolved.call(validation_feedback: feedback).strip
         errors = validator.validate(changelog)
         return changelog if errors.empty?
 
         context.ui.warn("Generated changelog did not match the required format:")
         errors.each { |message| context.ui.warn(message) }
+        feedback = validation_feedback(errors)
       end
       raise Error, "Could not generate a valid changelog after 5 attempts."
     end
@@ -84,6 +88,14 @@ module PumaRelease
 
     def validator = @validator ||= ChangelogValidator.new
 
+    def validation_feedback(errors)
+      [
+        "Previous attempt did not match the required format:",
+        *errors.map { |error| "- #{error}" },
+        "Correct those formatting issues and return the changelog again."
+      ].join("\n")
+    end
+
     class AgentBackend
       def initialize(context, release_range, new_tag, last_tag)
         @context = context
@@ -92,9 +104,9 @@ module PumaRelease
         @last_tag = last_tag
       end
 
-      def call
+      def call(validation_feedback: nil)
         context.ui.info("Asking #{context.agent_cmd} to draft changelog entries...")
-        payload = agent.ask_for_json(prompt, system_prompt: SYSTEM_PROMPT, schema: SCHEMA)
+        payload = agent.ask_for_json(prompt(validation_feedback:), system_prompt: SYSTEM_PROMPT, schema: SCHEMA)
         context.ui.info("Rendering changelog...")
         render(payload.fetch("entries"))
       end
@@ -105,7 +117,7 @@ module PumaRelease
 
       attr_reader :context, :release_range, :new_tag, :last_tag
 
-      def prompt
+      def prompt(validation_feedback: nil)
         <<~PROMPT
           Draft the changelog entries for #{new_tag} from #{last_tag}..HEAD.
 
@@ -115,7 +127,7 @@ module PumaRelease
           - description: concise release-note text with no PR refs in the text
           - pr_numbers: an array of GitHub PR numbers supporting the entry
 
-          #{release_range.to_prompt_context}
+          #{validation_feedback_section(validation_feedback)}#{release_range.to_prompt_context}
         PROMPT
       end
 
@@ -134,6 +146,12 @@ module PumaRelease
         "  * #{description} (#{pr_refs.join(", ")})"
       end
 
+      def validation_feedback_section(feedback)
+        return "" if feedback.to_s.strip.empty?
+
+        "#{feedback.strip}\n\n"
+      end
+
       def agent = @agent ||= AgentClient.new(context)
     end
 
@@ -146,21 +164,40 @@ module PumaRelease
         @last_tag = last_tag
       end
 
-      def call
-        result = context.shell.run(
-          "communique", "generate", new_tag, last_tag,
-          "--concise", "--dry-run", "--config", CONFIG,
-          env_overrides: github_env,
-          allow_failure: true
-        )
-        raise Error, "communique failed. Is ANTHROPIC_API_KEY set?" unless result.success?
+      def call(validation_feedback: nil)
+        with_config(validation_feedback) do |config_path|
+          result = context.shell.run(
+            "communique", "generate", new_tag, last_tag,
+            "--concise", "--dry-run", "--config", config_path,
+            env_overrides: github_env,
+            allow_failure: true
+          )
+          raise Error, "communique failed. Is ANTHROPIC_API_KEY set?" unless result.success?
 
-        result.stdout
+          result.stdout
+        end
       end
 
       private
 
       attr_reader :context, :new_tag, :last_tag
+
+      def with_config(validation_feedback)
+        feedback = validation_feedback.to_s.strip
+        return yield(CONFIG) if feedback.empty?
+
+        config = File.read(CONFIG)
+        updated = config.sub(/system_extra = """\n(.*?)\n"""/m) do
+          %(system_extra = """\n#{$1}\n\n#{feedback}\n""")
+        end
+        raise Error, "Could not inject validation feedback into communique config." if updated == config
+
+        Tempfile.create(["communique", ".toml"]) do |file|
+          file.write(updated)
+          file.flush
+          yield(file.path)
+        end
+      end
 
       def github_env
         token = context.github_token
