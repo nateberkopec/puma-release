@@ -1,2 +1,6 @@
 [tools]
 ruby = "4.0.2"
+communique = "0.1.9"
+
+[env]
+_.file = ".env"
