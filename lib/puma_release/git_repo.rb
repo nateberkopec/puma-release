@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "shellwords"
+
 module PumaRelease
   class GitRepo
     attr_reader :context
@@ -130,7 +132,27 @@ module PumaRelease
 
     def run_git!(*command, **options)
       context.confirm_live_git_command!("git", *command) if context.respond_to?(:confirm_live_git_command!)
+      pause_for_gpg_ready!(*command)
       shell.run("git", *command, **options)
+    end
+
+    def pause_for_gpg_ready!(*command)
+      return unless gpg_sensitive_command?(command)
+      return unless context.respond_to?(:ui) && context.ui.respond_to?(:pause)
+
+      rendered = Shellwords.join(["git", *command])
+      context.ui.pause("GPG signing may be required for #{rendered}. Press Enter when ready.")
+    end
+
+    def gpg_sensitive_command?(command)
+      case command.first
+      when "commit", "merge", "cherry-pick", "revert", "am", "push", "rebase"
+        true
+      when "tag"
+        !command.include?("-d") && !command.include?("--delete")
+      else
+        false
+      end
     end
 
     def metadata_remote

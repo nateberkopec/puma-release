@@ -51,6 +51,24 @@ class GitRepoTest < Minitest::Test
     assert_equal [["git", "push", "-u", "mine", "release-v7.3.0"]], confirmations
   end
 
+  def test_push_branch_pauses_before_a_gpg_sensitive_push
+    shell = FakeShell.new(
+      {
+        ["git", "remote"] => "origin\nmine\n",
+        ["git", "remote", "get-url", "origin"] => "https://github.com/puma/puma.git\n",
+        ["git", "remote", "get-url", "mine"] => "git@github.com:nateberkopec/puma.git\n"
+      }
+    )
+    pauses = []
+    ui = Object.new
+    ui.define_singleton_method(:pause) { |message| pauses << message }
+    context = OpenStruct.new(shell:, release_repo: "nateberkopec/puma", metadata_repo: "puma/puma", ui:)
+
+    PumaRelease::GitRepo.new(context).push_branch!("release-v7.3.0")
+
+    assert_equal ["GPG signing may be required for git push -u mine release-v7.3.0. Press Enter when ready."], pauses
+  end
+
   def test_ensure_clean_base_prefers_metadata_repo_remote_when_present
     shell = FakeShell.new(
       {
@@ -83,6 +101,24 @@ class GitRepoTest < Minitest::Test
       PumaRelease::GitRepo.new(context).commit_release!("7.3.0")
 
       assert_includes shell.commands, ["git", "commit", "-S", "-m", "Release v7.3.0"]
+    end
+  end
+
+  def test_commit_release_pauses_before_a_gpg_sensitive_commit
+    temp_repo do |repo|
+      version_file = repo.join("lib/puma/const.rb")
+      history_file = repo.join("History.md")
+      version_file.write("")
+      history_file.write("")
+      shell = FakeShell.new
+      pauses = []
+      ui = Object.new
+      ui.define_singleton_method(:pause) { |message| pauses << message }
+      context = OpenStruct.new(shell:, version_file:, history_file:, ui:)
+
+      PumaRelease::GitRepo.new(context).commit_release!("7.3.0")
+
+      assert_equal ["GPG signing may be required for git commit -S -m Release\\ v7.3.0. Press Enter when ready."], pauses
     end
   end
 

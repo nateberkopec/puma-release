@@ -26,6 +26,14 @@ module PumaRelease
       answer.start_with?("y")
     end
 
+    def pause(message)
+      return true unless $stdin.tty?
+
+      $stdout.print("#{message} [press enter] ")
+      $stdin.gets
+      true
+    end
+
     private
 
     def colorize(kind, message)
