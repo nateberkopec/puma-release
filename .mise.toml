@@ -4,3 +4,12 @@ communique = "0.1.9"
 
 [env]
 _.file = ".env"
+
+[tasks.test]
+run = "bundle exec rake test"
+
+[tasks.release-test]
+run = "exe/puma-release --release-repo nateberkopec/puma --repo-dir ../../upstream/puma"
+
+[tasks.release-live]
+run = "exe/puma-release --live --repo-dir ../../upstream/puma"
