@@ -33,6 +33,12 @@ class StageDetectorTest < Minitest::Test
     assert_equal :github, detector.next_step
   end
 
+  def test_returns_github_when_the_final_release_is_published_but_proposal_cleanup_is_still_pending
+    detector = build_detector(release: published_release, commits_since: 0, proposal_release: {"url" => "https://example.test/proposal"})
+
+    assert_equal :github, detector.next_step
+  end
+
   def test_returns_complete_when_release_is_published_and_there_are_no_new_commits
     detector = build_detector(release: published_release, commits_since: 0)
 
@@ -65,17 +71,21 @@ class StageDetectorTest < Minitest::Test
 
   private
 
-  def build_detector(current_branch: "main", last_tag: "v7.2.1", current_version: "7.2.1", release: nil, open_release_pr: nil, commits_since: 0, artifacts_present: true, release_branch_base: "main", rubygems_published: true)
+  def build_detector(current_branch: "main", last_tag: "v7.2.1", current_version: "7.2.1", release: nil, open_release_pr: nil, commits_since: 0, artifacts_present: true, release_branch_base: "main", rubygems_published: true, proposal_release: nil, proposal_tag_sha: "")
     git_repo = Object.new
     git_repo.define_singleton_method(:current_branch) { current_branch }
     git_repo.define_singleton_method(:last_tag) { last_tag }
     git_repo.define_singleton_method(:release_tag) { |version| "v#{version}" }
+    git_repo.define_singleton_method(:proposal_tag) { |version| "v#{version}-proposal" }
     git_repo.define_singleton_method(:commits_since) { |_tag| commits_since }
     git_repo.define_singleton_method(:release_branch_base) { release_branch_base }
+    git_repo.define_singleton_method(:remote_tag_sha) { |_tag| proposal_tag_sha }
 
     github = Object.new
     github.define_singleton_method(:open_release_pr) { open_release_pr }
-    github.define_singleton_method(:release) { |_tag| release }
+    github.define_singleton_method(:release) do |tag|
+      tag.end_with?("-proposal") ? proposal_release : release
+    end
 
     rubygems = Object.new
     rubygems.define_singleton_method(:release_published?) { |_version| rubygems_published }
