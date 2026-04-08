@@ -27,8 +27,14 @@ class StageDetectorTest < Minitest::Test
     assert_equal :complete, detector.next_step
   end
 
-  def test_returns_github_when_release_is_missing_but_tag_is_current
-    detector = build_detector(release: nil, commits_since: 0)
+  def test_returns_build_when_the_release_is_pending_and_local_artifacts_are_missing
+    detector = build_detector(release: nil, commits_since: 0, artifacts_present: false)
+
+    assert_equal :build, detector.next_step
+  end
+
+  def test_returns_github_when_release_is_missing_but_tag_is_current_and_local_artifacts_exist
+    detector = build_detector(release: nil, commits_since: 0, artifacts_present: true)
 
     assert_equal :github, detector.next_step
   end
@@ -41,7 +47,7 @@ class StageDetectorTest < Minitest::Test
 
   private
 
-  def build_detector(current_branch: "main", last_tag: "v7.2.1", current_version: "7.2.1", release: nil, open_release_pr: nil, commits_since: 0)
+  def build_detector(current_branch: "main", last_tag: "v7.2.1", current_version: "7.2.1", release: nil, open_release_pr: nil, commits_since: 0, artifacts_present: true)
     git_repo = Object.new
     git_repo.define_singleton_method(:current_branch) { current_branch }
     git_repo.define_singleton_method(:last_tag) { last_tag }
@@ -52,8 +58,16 @@ class StageDetectorTest < Minitest::Test
     github.define_singleton_method(:open_release_pr) { open_release_pr }
     github.define_singleton_method(:release) { |_tag| release }
 
+    repo_dir = Pathname(Dir.mktmpdir)
+    pkg_dir = repo_dir.join("pkg")
+    pkg_dir.mkpath
+    if artifacts_present
+      pkg_dir.join("puma-#{current_version}.gem").write("")
+      pkg_dir.join("puma-#{current_version}-java.gem").write("")
+    end
+
     PumaRelease::StageDetector.new(
-      OpenStruct.new(shell: FakeShell.new),
+      OpenStruct.new(shell: FakeShell.new, repo_dir:),
       git_repo:,
       repo_files: OpenStruct.new(current_version:),
       github:
