@@ -16,12 +16,12 @@ class ChangelogGeneratorTest < Minitest::Test
     backend = Object.new
     backend.define_singleton_method(:call) do |validation_feedback:|
       attempts << validation_feedback
-      attempts.length == 1 ? "invalid" : "* Features\n  * Add a thing ([#1])"
+      (attempts.length == 1) ? "invalid" : "* Features\n  * Add a thing ([#1])"
     end
 
     validator = Object.new
     validator.define_singleton_method(:validate) do |changelog|
-      changelog == "invalid" ? ["Line 1: unsupported category."] : []
+      (changelog == "invalid") ? ["Line 1: unsupported category."] : []
     end
 
     context = OpenStruct.new(ui: SilentUI.new)

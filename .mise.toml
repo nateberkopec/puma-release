@@ -8,6 +8,9 @@ _.file = ".env"
 [tasks.test]
 run = "bundle exec rake test"
 
+[tasks.lint]
+run = "bundle exec standardrb"
+
 [tasks.release-test]
 run = "exe/puma-release --release-repo nateberkopec/puma --repo-dir ../../upstream/puma"
 
