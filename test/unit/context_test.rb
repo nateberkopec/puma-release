@@ -36,6 +36,21 @@ class ContextTest < Minitest::Test
     assert_equal "main", context.base_branch
   end
 
+  def test_base_branch_uses_the_merged_release_pr_base_when_the_remembered_base_is_missing
+    shell = FakeShell.new(
+      {
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"] => "release-v8.0.0\n",
+        ["git", "config", "--get", "branch.release-v8.0.0.puma-release-base"] => "",
+        ["gh", "pr", "list", "--repo", "puma/puma", "--state", "merged", "--search", "head:puma:release-v8.0.0", "--json", "number,title,url,headRefName,baseRefName,mergedAt"] => FakeShell::Result.new(stdout: "[]", stderr: "", success?: true, exitstatus: 0),
+        ["gh", "pr", "list", "--repo", "puma/puma", "--state", "merged", "--search", "head:release-v8.0.0", "--json", "number,title,url,headRefName,baseRefName,mergedAt"] => FakeShell::Result.new(stdout: '[{"number":3914,"headRefName":"release-v8.0.0","baseRefName":"main"}]', stderr: "", success?: true, exitstatus: 0)
+      }
+    )
+
+    context = build_context(shell:, live: true)
+
+    assert_equal "main", context.base_branch
+  end
+
   def test_release_repo_prefers_a_fork_remote_when_not_live
     shell = FakeShell.new(
       {

@@ -16,6 +16,7 @@ module PumaRelease
         return recover_prepare if step == :recover_prepare
         return orphaned_release_branch if step == :orphaned_release_branch
         return prepare_follow_up if step == :prepare_follow_up
+        return recover_build if step == :recover_build
         return wait_for_rubygems if step == :wait_for_rubygems
         return wait_for_merge if step == :wait_for_merge
         return complete if step == :complete
@@ -58,6 +59,14 @@ module PumaRelease
       def orphaned_release_branch
         context.ui.info("Found a local release branch with no open PR, but puma-release does not know which base branch to return to. Switch back to your base branch and rerun with --base-branch if needed.")
         :orphaned_release_branch
+      end
+
+      def recover_build
+        return :aborted unless confirm_step(:build)
+
+        context.ui.info("Found a merged release branch. Switching back to #{context.base_branch}, updating it, and continuing with build.")
+        git_repo.update_local_branch!(context.base_branch)
+        run_step(:build)
       end
 
       def prepare_follow_up

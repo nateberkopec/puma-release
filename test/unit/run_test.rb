@@ -73,6 +73,29 @@ class RunTest < Minitest::Test
     assert_equal :wait_for_merge, run.call
   end
 
+  def test_recovers_build_from_a_merged_release_branch
+    ui = FakeUI.new
+    context = OpenStruct.new(ui:, base_branch: "main")
+    run = PumaRelease::Commands::Run.allocate
+    run.instance_variable_set(:@context, context)
+
+    detector = Object.new
+    def detector.next_step = :recover_build
+
+    updated = []
+    git_repo = Object.new
+    git_repo.define_singleton_method(:update_local_branch!) { |branch| updated << branch }
+
+    run.define_singleton_method(:stage_detector) { detector }
+    run.define_singleton_method(:git_repo) { git_repo }
+    run.define_singleton_method(:confirm_step) { |step| step == :build }
+    run.define_singleton_method(:run_step) { |step| step }
+
+    assert_equal :build, run.call
+    assert_equal ["main"], updated
+    assert_equal ["Found a merged release branch. Switching back to main, updating it, and continuing with build."], ui.infos
+  end
+
   def test_waits_for_rubygems_without_prompting
     ui = FakeUI.new
     context = OpenStruct.new(ui:)

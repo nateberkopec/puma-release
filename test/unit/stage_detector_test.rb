@@ -27,6 +27,17 @@ class StageDetectorTest < Minitest::Test
     assert_equal :wait_for_merge, detector.next_step
   end
 
+  def test_returns_recover_build_after_the_release_pr_is_merged_but_the_checkout_is_still_on_the_release_branch
+    detector = build_detector(
+      current_branch: "release-v7.2.1",
+      last_tag: "v7.2.0",
+      current_version: "7.2.1",
+      merged_release_pr: {"headRefName" => "release-v7.2.1", "baseRefName" => "main"}
+    )
+
+    assert_equal :recover_build, detector.next_step
+  end
+
   def test_returns_wait_for_merge_when_the_open_release_pr_has_a_matching_proposal_release
     detector = build_detector(
       open_release_pr: {"headRefName" => "release-v7.2.1"},
@@ -97,7 +108,7 @@ class StageDetectorTest < Minitest::Test
 
   private
 
-  def build_detector(current_branch: "main", last_tag: "v7.2.1", current_version: "7.2.1", release: nil, open_release_pr: nil, commits_since: 0, artifacts_present: true, release_branch_base: "main", rubygems_published: true, prepare_checkpoint: false, proposal_release: nil, proposal_tag_sha: "")
+  def build_detector(current_branch: "main", last_tag: "v7.2.1", current_version: "7.2.1", release: nil, open_release_pr: nil, merged_release_pr: nil, commits_since: 0, artifacts_present: true, release_branch_base: "main", rubygems_published: true, prepare_checkpoint: false, proposal_release: nil, proposal_tag_sha: "")
     git_repo = Object.new
     git_repo.define_singleton_method(:current_branch) { current_branch }
     git_repo.define_singleton_method(:last_tag) { last_tag }
@@ -109,6 +120,7 @@ class StageDetectorTest < Minitest::Test
 
     github = Object.new
     github.define_singleton_method(:open_release_pr) { open_release_pr }
+    github.define_singleton_method(:merged_release_pr) { |_branch| merged_release_pr }
     github.define_singleton_method(:release) do |tag|
       tag.end_with?("-proposal") ? proposal_release : release
     end

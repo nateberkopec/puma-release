@@ -16,6 +16,7 @@ module PumaRelease
       return :recover_prepare if recoverable_orphaned_release_branch?
       return :orphaned_release_branch if orphaned_release_branch?
       return :prepare_follow_up if prepare_follow_up_pending?
+      return :recover_build if recoverable_merged_release_branch?
       return :wait_for_merge if waiting_on_release_pr?
       return :build if release_version_ahead_of_tag?
       return :build if build_artifacts_missing_for_pending_release?
@@ -31,9 +32,14 @@ module PumaRelease
     private
 
     def waiting_on_release_pr?
-      return true if git_repo.current_branch.start_with?("release-v")
+      return current_branch_release_pr_open? if git_repo.current_branch.start_with?("release-v")
 
       release_pr_in_flight?
+    end
+
+    def current_branch_release_pr_open?
+      pr = open_release_pr
+      pr && pr.fetch("headRefName", "") == git_repo.current_branch
     end
 
     def release_pr_in_flight?
@@ -53,6 +59,13 @@ module PumaRelease
 
     def recoverable_orphaned_release_branch?
       orphaned_release_branch? && !git_repo.release_branch_base.empty?
+    end
+
+    def recoverable_merged_release_branch?
+      git_repo.current_branch.start_with?("release-v") &&
+        open_release_pr.nil? &&
+        !merged_release_pr_for_current_branch.nil? &&
+        release_version_ahead_of_tag?
     end
 
     def orphaned_release_branch?
@@ -111,6 +124,12 @@ module PumaRelease
       return @open_release_pr if defined?(@open_release_pr)
 
       @open_release_pr = github.open_release_pr
+    end
+
+    def merged_release_pr_for_current_branch
+      return @merged_release_pr_for_current_branch if defined?(@merged_release_pr_for_current_branch)
+
+      @merged_release_pr_for_current_branch = github.merged_release_pr(git_repo.current_branch)
     end
 
     def current_release

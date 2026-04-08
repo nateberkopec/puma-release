@@ -120,7 +120,9 @@ module PumaRelease
       return current unless current.start_with?("release-v")
 
       remembered = shell.optional_output("git", "config", "--get", "branch.#{current}.puma-release-base")
-      remembered.empty? ? current : remembered
+      return remembered unless remembered.empty?
+
+      merged_pr_base_branch(current) || default_branch_for(metadata_repo) || current
     end
 
     def infer_release_repo
@@ -158,6 +160,24 @@ module PumaRelease
 
       login = JSON.parse(result.stdout).fetch("login", "").strip
       login.empty? ? nil : login
+    rescue Errno::ENOENT, JSON::ParserError
+      nil
+    end
+
+    def merged_pr_base_branch(branch)
+      GitHubClient.new(self).merged_release_pr(branch)&.fetch("baseRefName", nil).to_s.strip.then do |base|
+        base.empty? ? nil : base
+      end
+    end
+
+    def default_branch_for(repo)
+      return nil unless shell.available?("gh")
+
+      result = shell.run("gh", "api", "repos/#{repo}", allow_failure: true)
+      return nil unless result.success?
+
+      branch = JSON.parse(result.stdout).fetch("default_branch", "").strip
+      branch.empty? ? nil : branch
     rescue Errno::ENOENT, JSON::ParserError
       nil
     end

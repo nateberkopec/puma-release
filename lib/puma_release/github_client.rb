@@ -35,19 +35,12 @@ module PumaRelease
       json("gh", "api", "users/#{login}")
     end
 
-    def open_release_pr
-      owner = context.release_repo.split("/").first
-      queries = ["head:#{owner}:release-v", "head:release-v"].uniq
-      prs = queries.flat_map do |query|
-        json(
-          "gh", "pr", "list", "--repo", context.release_repo,
-          "--state", "open",
-          "--search", query,
-          "--json", "number,title,url,headRefName"
-        ) || []
-      end
-      prs.uniq { |pr| pr.fetch("number", pr.fetch("url", pr.object_id)) }
-        .find { |pr| pr.fetch("headRefName", "").start_with?("release-v") }
+    def open_release_pr(branch = nil)
+      release_pr("open", branch)
+    end
+
+    def merged_release_pr(branch = nil)
+      release_pr("merged", branch)
     end
 
     def create_release_pr(title, branch, body: "")
@@ -154,6 +147,25 @@ module PumaRelease
     def output_gh!(*command, **options)
       context.confirm_live_gh_command!("gh", *command) if context.respond_to?(:confirm_live_gh_command!)
       context.shell.output("gh", *command, **options)
+    end
+
+    def release_pr(state, branch = nil)
+      owner = context.release_repo.split("/").first
+      search_branch = branch || "release-v"
+      queries = ["head:#{owner}:#{search_branch}", "head:#{search_branch}"].uniq
+      prs = queries.flat_map do |query|
+        json(
+          "gh", "pr", "list", "--repo", context.release_repo,
+          "--state", state,
+          "--search", query,
+          "--json", "number,title,url,headRefName,baseRefName,mergedAt"
+        ) || []
+      end
+
+      prs = prs.uniq { |pr| pr.fetch("number", pr.fetch("url", pr.object_id)) }
+      return prs.find { |pr| pr.fetch("headRefName", "") == branch } if branch
+
+      prs.find { |pr| pr.fetch("headRefName", "").start_with?("release-v") }
     end
 
     def release_id(tag, allow_failure: false)
