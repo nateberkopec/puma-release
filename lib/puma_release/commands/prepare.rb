@@ -36,7 +36,7 @@ module PumaRelease
         refs = build_link_references(changelog)
 
         branch = "release-v#{new_version}"
-        git_repo.checkout_release_branch!(branch)
+        git_repo.checkout_release_branch!(branch, base_branch: context.base_branch)
         repo_files.prepend_history_section!(new_version, changelog, refs)
         repo_files.update_version!(new_version, bump_type, codename: context.codename)
         upgrade_guide_path = write_upgrade_guide(release_range, new_version, recommendation, bump_type)

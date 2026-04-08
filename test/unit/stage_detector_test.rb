@@ -3,8 +3,20 @@
 require_relative "../test_helper"
 
 class StageDetectorTest < Minitest::Test
-  def test_returns_wait_for_merge_on_release_branch
-    detector = build_detector(current_branch: "release-v7.2.1")
+  def test_returns_recover_prepare_for_a_local_release_branch_with_no_pr_and_a_remembered_base_branch
+    detector = build_detector(current_branch: "release-v7.2.1", release_branch_base: "main", commits_since: 3)
+
+    assert_equal :recover_prepare, detector.next_step
+  end
+
+  def test_returns_orphaned_release_branch_when_the_base_branch_is_unknown
+    detector = build_detector(current_branch: "release-v7.2.1", release_branch_base: "", commits_since: 3)
+
+    assert_equal :orphaned_release_branch, detector.next_step
+  end
+
+  def test_returns_wait_for_merge_when_a_release_pr_is_open
+    detector = build_detector(open_release_pr: {"url" => "https://example.test/pr/1"})
 
     assert_equal :wait_for_merge, detector.next_step
   end
@@ -47,12 +59,13 @@ class StageDetectorTest < Minitest::Test
 
   private
 
-  def build_detector(current_branch: "main", last_tag: "v7.2.1", current_version: "7.2.1", release: nil, open_release_pr: nil, commits_since: 0, artifacts_present: true)
+  def build_detector(current_branch: "main", last_tag: "v7.2.1", current_version: "7.2.1", release: nil, open_release_pr: nil, commits_since: 0, artifacts_present: true, release_branch_base: "main")
     git_repo = Object.new
     git_repo.define_singleton_method(:current_branch) { current_branch }
     git_repo.define_singleton_method(:last_tag) { last_tag }
     git_repo.define_singleton_method(:release_tag) { |version| "v#{version}" }
     git_repo.define_singleton_method(:commits_since) { |_tag| commits_since }
+    git_repo.define_singleton_method(:release_branch_base) { release_branch_base }
 
     github = Object.new
     github.define_singleton_method(:open_release_pr) { open_release_pr }

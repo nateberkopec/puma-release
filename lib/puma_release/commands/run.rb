@@ -11,6 +11,8 @@ module PumaRelease
 
       def call
         step = stage_detector.next_step
+        return recover_prepare if step == :recover_prepare
+        return orphaned_release_branch if step == :orphaned_release_branch
         return wait_for_merge if step == :wait_for_merge
         return complete if step == :complete
         return run_step(step) if confirm_step(step)
@@ -21,6 +23,7 @@ module PumaRelease
       private
 
       def stage_detector = StageDetector.new(context)
+      def git_repo = GitRepo.new(context)
 
       def confirm_step(step)
         return true if context.yes?
@@ -35,6 +38,20 @@ module PumaRelease
         when :github then Github.new(context).call
         else raise Error, "Unknown step: #{step}"
         end
+      end
+
+      def recover_prepare
+        return :aborted unless confirm_step(:prepare)
+
+        base_branch = git_repo.release_branch_base
+        context.ui.info("Found a local release branch with no open PR. Switching back to #{base_branch} and retrying prepare.")
+        git_repo.checkout_branch!(base_branch)
+        run_step(:prepare)
+      end
+
+      def orphaned_release_branch
+        context.ui.info("Found a local release branch with no open PR, but puma-release does not know which base branch to return to. Switch back to your base branch and rerun with --base-branch if needed.")
+        :orphaned_release_branch
       end
 
       def complete

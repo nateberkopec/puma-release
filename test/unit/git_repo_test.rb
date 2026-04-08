@@ -93,14 +93,17 @@ class GitRepoTest < Minitest::Test
     shell = FakeShell.new(
       {
         ["git", "rev-parse", "--abbrev-ref", "HEAD"] => "main\n",
-        ["git", "show-ref", "--verify", "--quiet", "refs/heads/release-v7.3.0"] => FakeShell::Result.new(stdout: "", stderr: "", success?: true, exitstatus: 0)
+        ["git", "show-ref", "--verify", "--quiet", "refs/heads/release-v7.3.0"] => FakeShell::Result.new(stdout: "", stderr: "", success?: true, exitstatus: 0),
+        ["git", "config", "--get", "branch.release-v7.3.0.puma-release-base"] => "main\n"
       }
     )
 
-    PumaRelease::GitRepo.new(OpenStruct.new(shell:)).checkout_release_branch!("release-v7.3.0")
+    repo = PumaRelease::GitRepo.new(OpenStruct.new(shell:))
+    repo.checkout_release_branch!("release-v7.3.0", base_branch: "main")
 
     assert_includes shell.commands, ["git", "checkout", "release-v7.3.0"]
     refute_includes shell.commands, ["git", "checkout", "-b", "release-v7.3.0"]
+    assert_equal "main", repo.release_branch_base("release-v7.3.0")
   end
 
   def test_checkout_release_branch_is_a_no_op_when_already_on_the_release_branch
@@ -113,6 +116,27 @@ class GitRepoTest < Minitest::Test
     PumaRelease::GitRepo.new(OpenStruct.new(shell:)).checkout_release_branch!("release-v7.3.0")
 
     assert_equal [["git", "rev-parse", "--abbrev-ref", "HEAD"]], shell.commands
+  end
+
+  def test_checkout_release_branch_remembers_the_base_branch
+    shell = FakeShell.new(
+      {
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"] => lambda do
+          @current_branch ||= "main"
+        end,
+        ["git", "show-ref", "--verify", "--quiet", "refs/heads/release-v7.3.0"] => FakeShell::Result.new(stdout: "", stderr: "", success?: false, exitstatus: 1),
+        ["git", "config", "--get", "branch.release-v7.3.0.puma-release-base"] => "main\n"
+      }
+    )
+
+    context = OpenStruct.new(shell:)
+    repo = PumaRelease::GitRepo.new(context)
+
+    repo.checkout_release_branch!("release-v7.3.0", base_branch: "main")
+
+    assert_includes shell.commands, ["git", "checkout", "-b", "release-v7.3.0"]
+    assert_includes shell.commands, ["git", "config", "branch.release-v7.3.0.puma-release-base", "main"]
+    assert_equal "main", repo.release_branch_base("release-v7.3.0")
   end
 
   def test_commit_release_creates_a_signed_commit
