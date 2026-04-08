@@ -167,7 +167,7 @@ module PumaRelease
 
     def gpg_sensitive_command?(command)
       case command.first
-      when "commit", "merge", "cherry-pick", "revert", "am", "push", "rebase"
+      when "commit", "merge", "cherry-pick", "revert", "am", "rebase"
         true
       when "tag"
         !command.include?("-d") && !command.include?("--delete")

@@ -51,7 +51,7 @@ class GitRepoTest < Minitest::Test
     assert_equal [["git", "push", "-u", "mine", "release-v7.3.0"]], confirmations
   end
 
-  def test_push_branch_pauses_before_a_gpg_sensitive_push
+  def test_push_branch_does_not_pause_for_gpg
     shell = FakeShell.new(
       {
         ["git", "remote"] => "origin\nmine\n",
@@ -66,7 +66,7 @@ class GitRepoTest < Minitest::Test
 
     PumaRelease::GitRepo.new(context).push_branch!("release-v7.3.0")
 
-    assert_equal ["GPG signing may be required for git push -u mine release-v7.3.0. Press Enter when ready."], pauses
+    assert_empty pauses
   end
 
   def test_ensure_clean_base_prefers_metadata_repo_remote_when_present
