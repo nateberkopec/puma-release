@@ -26,7 +26,7 @@ module PumaRelease
     def codename = options.fetch(:codename)
 
     def base_branch
-      @base_branch ||= options[:base_branch] || shell.output("git", "rev-parse", "--abbrev-ref", "HEAD").strip
+      @base_branch ||= options[:base_branch] || inferred_base_branch
     end
 
     def agent_cmd = env.fetch("AGENT_CMD", "claude")
@@ -114,6 +114,14 @@ module PumaRelease
     end
 
     private
+
+    def inferred_base_branch
+      current = shell.output("git", "rev-parse", "--abbrev-ref", "HEAD").strip
+      return current unless current.start_with?("release-v")
+
+      remembered = shell.optional_output("git", "config", "--get", "branch.#{current}.puma-release-base")
+      remembered.empty? ? current : remembered
+    end
 
     def infer_release_repo
       return metadata_repo if live?

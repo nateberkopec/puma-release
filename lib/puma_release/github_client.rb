@@ -37,13 +37,17 @@ module PumaRelease
 
     def open_release_pr
       owner = context.release_repo.split("/").first
-      prs = json(
-        "gh", "pr", "list", "--repo", context.release_repo,
-        "--state", "open",
-        "--search", "head:#{owner}:release-v",
-        "--json", "number,title,url,headRefName"
-      ) || []
-      prs.find { |pr| pr.fetch("headRefName", "").start_with?("release-v") }
+      queries = ["head:#{owner}:release-v", "head:release-v"].uniq
+      prs = queries.flat_map do |query|
+        json(
+          "gh", "pr", "list", "--repo", context.release_repo,
+          "--state", "open",
+          "--search", query,
+          "--json", "number,title,url,headRefName"
+        ) || []
+      end
+      prs.uniq { |pr| pr.fetch("number", pr.fetch("url", pr.object_id)) }
+        .find { |pr| pr.fetch("headRefName", "").start_with?("release-v") }
     end
 
     def create_release_pr(title, branch, body: "")

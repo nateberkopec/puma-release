@@ -23,6 +23,19 @@ class ContextTest < Minitest::Test
     end
   end
 
+  def test_base_branch_uses_the_remembered_release_branch_base
+    shell = FakeShell.new(
+      {
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"] => "release-v8.0.0\n",
+        ["git", "config", "--get", "branch.release-v8.0.0.puma-release-base"] => "main\n"
+      }
+    )
+
+    context = build_context(shell:, live: true)
+
+    assert_equal "main", context.base_branch
+  end
+
   def test_release_repo_prefers_a_fork_remote_when_not_live
     shell = FakeShell.new(
       {
