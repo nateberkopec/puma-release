@@ -30,7 +30,7 @@ module PumaRelease
       i = -1
       updated = context.security_file.read.gsub(/Latest release in \d+\.x/) do
         i += 1
-        i < new_majors.size ? "Latest release in #{new_majors[i]}.x" : $&
+        (i < new_majors.size) ? "Latest release in #{new_majors[i]}.x" : $&
       end
       context.security_file.write(updated)
     end
