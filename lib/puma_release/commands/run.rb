@@ -13,6 +13,7 @@ module PumaRelease
         step = stage_detector.next_step
         return recover_prepare if step == :recover_prepare
         return orphaned_release_branch if step == :orphaned_release_branch
+        return wait_for_rubygems if step == :wait_for_rubygems
         return wait_for_merge if step == :wait_for_merge
         return complete if step == :complete
         return run_step(step) if confirm_step(step)
@@ -52,6 +53,11 @@ module PumaRelease
       def orphaned_release_branch
         context.ui.info("Found a local release branch with no open PR, but puma-release does not know which base branch to return to. Switch back to your base branch and rerun with --base-branch if needed.")
         :orphaned_release_branch
+      end
+
+      def wait_for_rubygems
+        context.ui.info("Release artifacts are built, but RubyGems does not show both variants yet. Push both gems to RubyGems, wait for them to appear, and rerun puma-release.")
+        :wait_for_rubygems
       end
 
       def complete

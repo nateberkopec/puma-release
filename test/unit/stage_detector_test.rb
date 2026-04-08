@@ -45,8 +45,14 @@ class StageDetectorTest < Minitest::Test
     assert_equal :build, detector.next_step
   end
 
-  def test_returns_github_when_release_is_missing_but_tag_is_current_and_local_artifacts_exist
-    detector = build_detector(release: nil, commits_since: 0, artifacts_present: true)
+  def test_returns_wait_for_rubygems_when_release_is_missing_but_tag_is_current_and_gems_are_not_published
+    detector = build_detector(release: nil, commits_since: 0, artifacts_present: true, rubygems_published: false)
+
+    assert_equal :wait_for_rubygems, detector.next_step
+  end
+
+  def test_returns_github_when_release_is_missing_but_tag_is_current_and_gems_are_published
+    detector = build_detector(release: nil, commits_since: 0, artifacts_present: true, rubygems_published: true)
 
     assert_equal :github, detector.next_step
   end
@@ -59,7 +65,7 @@ class StageDetectorTest < Minitest::Test
 
   private
 
-  def build_detector(current_branch: "main", last_tag: "v7.2.1", current_version: "7.2.1", release: nil, open_release_pr: nil, commits_since: 0, artifacts_present: true, release_branch_base: "main")
+  def build_detector(current_branch: "main", last_tag: "v7.2.1", current_version: "7.2.1", release: nil, open_release_pr: nil, commits_since: 0, artifacts_present: true, release_branch_base: "main", rubygems_published: true)
     git_repo = Object.new
     git_repo.define_singleton_method(:current_branch) { current_branch }
     git_repo.define_singleton_method(:last_tag) { last_tag }
@@ -70,6 +76,9 @@ class StageDetectorTest < Minitest::Test
     github = Object.new
     github.define_singleton_method(:open_release_pr) { open_release_pr }
     github.define_singleton_method(:release) { |_tag| release }
+
+    rubygems = Object.new
+    rubygems.define_singleton_method(:release_published?) { |_version| rubygems_published }
 
     repo_dir = Pathname(Dir.mktmpdir)
     pkg_dir = repo_dir.join("pkg")
@@ -83,7 +92,8 @@ class StageDetectorTest < Minitest::Test
       OpenStruct.new(shell: FakeShell.new, repo_dir:),
       git_repo:,
       repo_files: OpenStruct.new(current_version:),
-      github:
+      github:,
+      rubygems:
     )
   end
 
