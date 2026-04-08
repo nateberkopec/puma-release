@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "json"
+
 module PumaRelease
   module Commands
     class Prepare
@@ -45,17 +47,60 @@ module PumaRelease
         git_repo.push_branch!(branch)
 
         compare_url = "https://github.com/#{context.metadata_repo}/compare/#{last_tag}...#{git_repo.head_sha}"
+        comment_body = pr_comment(recommendation, earner)
+        release_body = release_body(new_version)
+        release_title = repo_files.release_name(new_version)
+        write_prepare_checkpoint(
+          branch:,
+          compare_url:,
+          pr_comment: comment_body,
+          release_body:,
+          release_title:,
+          version: new_version
+        )
+
         pr_url = github.create_release_pr("Release v#{new_version}", branch, body: compare_url)
-        github.comment_on_pr(pr_url, pr_comment(recommendation, earner))
-        release = ensure_draft_release(new_version, branch)
+        github.comment_on_pr(pr_url, comment_body)
+        release = ensure_draft_release(new_version, branch, body: release_body, title: release_title)
         release_url = release.fetch("url")
         github.update_pr_body(pr_url, "#{compare_url}\n\n#{release_url}")
+        clear_prepare_checkpoint!
         context.events.publish(:checkpoint, kind: :wait_for_merge, pr_url:, release_url:, branch:)
 
         context.ui.info("Release PR created: #{pr_url}")
         context.ui.info("Draft GitHub release ready: #{release.fetch("url")}")
         context.ui.warn(waiting_on_codename_message(earner)) if earner
         context.ui.info("STOP: review and merge the PR, then rerun puma-release.")
+        :wait_for_merge
+      end
+
+      def resume_follow_up
+        context.check_dependencies!("gh")
+        context.announce_live_mode!
+        context.ensure_release_writes_allowed!
+
+        pr = github.open_release_pr || raise(Error, "No open release PR found to resume.")
+        checkpoint = load_prepare_checkpoint
+        branch = checkpoint.fetch("branch")
+        raise Error, "Prepare checkpoint does not match the open release branch #{pr.fetch("headRefName")}." unless branch == pr.fetch("headRefName")
+
+        comment_body = checkpoint.fetch("pr_comment")
+        unless pr_comment_exists?(pr.fetch("number"), comment_body)
+          github.comment_on_pr(pr.fetch("url"), comment_body)
+        end
+
+        release = ensure_draft_release(
+          checkpoint.fetch("version"),
+          branch,
+          body: checkpoint.fetch("release_body"),
+          title: checkpoint.fetch("release_title")
+        )
+        release_url = release.fetch("url")
+        github.update_pr_body(pr.fetch("url"), "#{checkpoint.fetch("compare_url")}\n\n#{release_url}")
+        clear_prepare_checkpoint!
+
+        context.ui.info("Resumed release PR follow-up: #{pr.fetch("url")}")
+        context.ui.info("Draft GitHub release ready: #{release_url}")
         :wait_for_merge
       end
 
@@ -131,10 +176,8 @@ module PumaRelease
         git_repo.delete_local_tag!(tag, allow_failure: true) if tag
       end
 
-      def ensure_draft_release(version, branch)
+      def ensure_draft_release(version, branch, body: release_body(version), title: repo_files.release_name(version))
         tag = git_repo.proposal_tag(version)
-        body = release_body(version)
-        title = repo_files.release_name(version)
         release = github.release(tag)
         release ||= github.create_release(tag, body, title:, draft: true, target: branch)
         release = github.edit_release_target(tag, branch) if release.fetch("targetCommitish", "") != branch
@@ -176,6 +219,27 @@ module PumaRelease
         return "Waiting on @#{earner.fetch(:login)} for a codename before merging." if earner[:login]
 
         "Waiting on #{earner.fetch(:name)} for a codename before merging."
+      end
+
+      def write_prepare_checkpoint(payload)
+        context.prepare_checkpoint_file.dirname.mkpath
+        context.prepare_checkpoint_file.write(JSON.pretty_generate(payload.transform_keys(&:to_s)))
+      end
+
+      def load_prepare_checkpoint
+        path = context.prepare_checkpoint_file
+        raise Error, "No prepare checkpoint found at #{path}." unless path.file?
+
+        JSON.parse(path.read)
+      end
+
+      def clear_prepare_checkpoint!
+        path = context.prepare_checkpoint_file
+        path.delete if path.file?
+      end
+
+      def pr_comment_exists?(number, body)
+        github.pr_comments(number).any? { |comment| comment.fetch("body", "") == body }
       end
 
       def release_body(version)

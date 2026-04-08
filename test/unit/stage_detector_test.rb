@@ -3,6 +3,12 @@
 require_relative "../test_helper"
 
 class StageDetectorTest < Minitest::Test
+  def test_returns_prepare_follow_up_when_a_release_pr_is_open_and_the_prepare_checkpoint_exists
+    detector = build_detector(open_release_pr: {"headRefName" => "release-v7.2.1"}, prepare_checkpoint: true)
+
+    assert_equal :prepare_follow_up, detector.next_step
+  end
+
   def test_returns_wait_for_merge_on_release_branch
     detector = build_detector(current_branch: "release-v7.2.1")
 
@@ -47,7 +53,7 @@ class StageDetectorTest < Minitest::Test
 
   private
 
-  def build_detector(current_branch: "main", last_tag: "v7.2.1", current_version: "7.2.1", release: nil, open_release_pr: nil, commits_since: 0, artifacts_present: true)
+  def build_detector(current_branch: "main", last_tag: "v7.2.1", current_version: "7.2.1", release: nil, open_release_pr: nil, commits_since: 0, artifacts_present: true, prepare_checkpoint: false)
     git_repo = Object.new
     git_repo.define_singleton_method(:current_branch) { current_branch }
     git_repo.define_singleton_method(:last_tag) { last_tag }
@@ -58,7 +64,11 @@ class StageDetectorTest < Minitest::Test
     github.define_singleton_method(:open_release_pr) { open_release_pr }
     github.define_singleton_method(:release) { |_tag| release }
 
-    repo_dir = Pathname(Dir.mktmpdir)
+    tmp_dir = Pathname(Dir.mktmpdir)
+    checkpoint_file = tmp_dir.join("prepare.json")
+    checkpoint_file.write("{}") if prepare_checkpoint
+
+    repo_dir = tmp_dir.join("repo")
     pkg_dir = repo_dir.join("pkg")
     pkg_dir.mkpath
     if artifacts_present
@@ -67,7 +77,7 @@ class StageDetectorTest < Minitest::Test
     end
 
     PumaRelease::StageDetector.new(
-      OpenStruct.new(shell: FakeShell.new, repo_dir:),
+      OpenStruct.new(shell: FakeShell.new, prepare_checkpoint_file: checkpoint_file, repo_dir:),
       git_repo:,
       repo_files: OpenStruct.new(current_version:),
       github:

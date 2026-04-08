@@ -11,6 +11,7 @@ module PumaRelease
 
       def call
         step = stage_detector.next_step
+        return prepare_follow_up if step == :prepare_follow_up
         return wait_for_merge if step == :wait_for_merge
         return complete if step == :complete
         return run_step(step) if confirm_step(step)
@@ -21,6 +22,7 @@ module PumaRelease
       private
 
       def stage_detector = StageDetector.new(context)
+      def prepare_command = Prepare.new(context)
 
       def confirm_step(step)
         return true if context.yes?
@@ -30,11 +32,15 @@ module PumaRelease
 
       def run_step(step)
         case step
-        when :prepare then Prepare.new(context).call
+        when :prepare then prepare_command.call
         when :build then Build.new(context).call
         when :github then Github.new(context).call
         else raise Error, "Unknown step: #{step}"
         end
+      end
+
+      def prepare_follow_up
+        prepare_command.resume_follow_up
       end
 
       def complete

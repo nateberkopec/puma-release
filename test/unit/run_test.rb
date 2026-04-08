@@ -15,6 +15,24 @@ class RunTest < Minitest::Test
     end
   end
 
+  def test_resumes_prepare_follow_up_without_prompting
+    ui = FakeUI.new
+    context = OpenStruct.new(ui:)
+    run = PumaRelease::Commands::Run.allocate
+    run.instance_variable_set(:@context, context)
+
+    detector = Object.new
+    def detector.next_step = :prepare_follow_up
+    prepare = Object.new
+    prepare.define_singleton_method(:resume_follow_up) { :wait_for_merge }
+
+    run.define_singleton_method(:stage_detector) { detector }
+    run.define_singleton_method(:prepare_command) { prepare }
+    run.define_singleton_method(:confirm_step) { flunk "confirm_step should not be called when resuming prepare follow-up" }
+
+    assert_equal :wait_for_merge, run.call
+  end
+
   def test_returns_complete_without_prompt_when_release_is_already_complete
     ui = FakeUI.new
     context = OpenStruct.new(ui:)

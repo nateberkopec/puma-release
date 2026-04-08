@@ -65,6 +65,10 @@ module PumaRelease
       run_gh!("pr", "comment", pr_url, "--body", body)
     end
 
+    def pr_comments(number, repo: context.release_repo)
+      json("gh", "api", "repos/#{repo}/issues/#{number}/comments") || []
+    end
+
     def release(tag)
       json("gh", "release", "view", tag, "--repo", context.release_repo, "--json", "tagName,name,isDraft,body,url,assets,targetCommitish")
     end

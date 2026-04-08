@@ -12,6 +12,7 @@ module PumaRelease
     end
 
     def next_step
+      return :prepare_follow_up if prepare_follow_up_pending?
       return :wait_for_merge if waiting_on_release_pr?
       return :build if release_version_ahead_of_tag?
       return :build if build_artifacts_missing_for_pending_release?
@@ -27,7 +28,11 @@ module PumaRelease
     def waiting_on_release_pr?
       return true if git_repo.current_branch.start_with?("release-v")
 
-      !github.open_release_pr.nil?
+      !open_release_pr.nil?
+    end
+
+    def prepare_follow_up_pending?
+      !open_release_pr.nil? && context.prepare_checkpoint_file.file?
     end
 
     def release_version_ahead_of_tag?
@@ -53,6 +58,12 @@ module PumaRelease
 
     def no_new_commits_since_last_release?
       git_repo.commits_since(git_repo.last_tag).zero?
+    end
+
+    def open_release_pr
+      return @open_release_pr if defined?(@open_release_pr)
+
+      @open_release_pr = github.open_release_pr
     end
 
     def current_release
