@@ -14,6 +14,7 @@ module PumaRelease
     def next_step
       return :wait_for_merge if waiting_on_release_pr?
       return :build if release_version_ahead_of_tag?
+      return :build if build_artifacts_missing_for_pending_release?
       return :github if github_release_pending?
       return :github if github_release_missing_for_current_tag?
       return :complete if no_new_commits_since_last_release?
@@ -40,6 +41,12 @@ module PumaRelease
       release.fetch("isDraft", false) || missing_assets?(release)
     end
 
+    def build_artifacts_missing_for_pending_release?
+      return false if release_complete?
+
+      !build_artifacts_present? && (current_release.nil? || github_release_pending?)
+    end
+
     def github_release_missing_for_current_tag?
       current_release.nil? && no_new_commits_since_last_release?
     end
@@ -52,6 +59,15 @@ module PumaRelease
       return @current_release if defined?(@current_release)
 
       @current_release = github.release(git_repo.release_tag(repo_files.current_version))
+    end
+
+    def release_complete?
+      release = current_release
+      release && !release.fetch("isDraft", false) && !missing_assets?(release)
+    end
+
+    def build_artifacts_present?
+      expected_assets.all? { |name| context.repo_dir.join("pkg", name).file? }
     end
 
     def missing_assets?(release)
