@@ -128,12 +128,15 @@ class PrepareTest < Minitest::Test
     context.define_singleton_method(:announce_live_mode!) {}
     context.define_singleton_method(:ensure_release_writes_allowed!) {}
     context.define_singleton_method(:agent_binary) { "pi" }
+    context.define_singleton_method(:base_branch) { "main" }
 
     git_repo = Object.new
     git_repo.define_singleton_method(:ensure_clean_base!) { sequence << :ensure_clean_base }
     git_repo.define_singleton_method(:last_tag) { "v7.2.0" }
     git_repo.define_singleton_method(:bump_version) { |_current, _bump| "7.2.1" }
-    git_repo.define_singleton_method(:checkout_release_branch!) { |branch| sequence << [:checkout_release_branch, branch] }
+    git_repo.define_singleton_method(:checkout_release_branch!) do |branch, base_branch:|
+      sequence << [:checkout_release_branch, branch, base_branch]
+    end
     git_repo.define_singleton_method(:proposal_tag) { |_version| "v7.2.1-proposal" }
     git_repo.define_singleton_method(:commit_release!) { |_version, extra_files:| sequence << [:commit_release, extra_files] }
     git_repo.define_singleton_method(:push_branch!) { |_branch| sequence << :push_branch }
@@ -183,7 +186,7 @@ class PrepareTest < Minitest::Test
 
     assert_equal :wait_for_merge, prepare.call
 
-    checkout_index = sequence.index([:checkout_release_branch, "release-v7.2.1"])
+    checkout_index = sequence.index([:checkout_release_branch, "release-v7.2.1", "main"])
     prepend_index = sequence.index(:prepend_history_section)
     update_version_index = sequence.index([:update_version, nil])
 
