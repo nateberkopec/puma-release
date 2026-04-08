@@ -17,6 +17,7 @@ module PumaRelease
       return :build if build_artifacts_missing_for_pending_release?
       return :github if github_release_pending?
       return :github if github_release_missing_for_current_tag?
+      return :github if proposal_cleanup_pending?
       return :complete if no_new_commits_since_last_release?
 
       :prepare
@@ -53,6 +54,14 @@ module PumaRelease
 
     def no_new_commits_since_last_release?
       git_repo.commits_since(git_repo.last_tag).zero?
+    end
+
+    def proposal_cleanup_pending?
+      return false unless no_new_commits_since_last_release?
+      return false unless current_release && !github_release_pending?
+
+      proposal_tag = git_repo.proposal_tag(repo_files.current_version)
+      github.release(proposal_tag) || !git_repo.remote_tag_sha(proposal_tag).empty?
     end
 
     def current_release
