@@ -37,6 +37,22 @@ class GitHubClientTest < Minitest::Test
     assert_equal "v7.3.0 - INSERT CODENAME HERE", release.fetch("name")
   end
 
+  def test_open_release_pr_falls_back_to_a_non_owner_qualified_head_search
+    shell = FakeShell.new(
+      {
+        ["gh", "pr", "list", "--repo", "puma/puma", "--state", "open", "--search", "head:puma:release-v", "--json", "number,title,url,headRefName"] => FakeShell::Result.new(stdout: "[]", stderr: "", success?: true, exitstatus: 0),
+        ["gh", "pr", "list", "--repo", "puma/puma", "--state", "open", "--search", "head:release-v", "--json", "number,title,url,headRefName"] => FakeShell::Result.new(stdout: '[{"number":3914,"title":"Release v8.0.0","url":"https://github.com/puma/puma/pull/3914","headRefName":"release-v8.0.0"}]', stderr: "", success?: true, exitstatus: 0)
+      }
+    )
+
+    context = OpenStruct.new(shell:, release_repo: "puma/puma")
+
+    pr = PumaRelease::GitHubClient.new(context).open_release_pr
+
+    assert_equal 3914, pr.fetch("number")
+    assert_equal "release-v8.0.0", pr.fetch("headRefName")
+  end
+
   def test_create_release_pr_confirms_before_writing
     shell = FakeShell.new(
       {
