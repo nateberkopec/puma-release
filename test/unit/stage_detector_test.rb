@@ -15,6 +15,26 @@ class StageDetectorTest < Minitest::Test
     assert_equal :wait_for_merge, detector.next_step
   end
 
+  def test_returns_wait_for_merge_when_the_open_release_pr_has_a_matching_proposal_release
+    detector = build_detector(
+      open_release_pr: {"headRefName" => "release-v7.2.1"},
+      proposal_release: {"targetCommitish" => "release-v7.2.1"},
+      commits_since: 3
+    )
+
+    assert_equal :wait_for_merge, detector.next_step
+  end
+
+  def test_ignores_stale_release_prs_that_do_not_have_a_matching_proposal_release
+    detector = build_detector(
+      open_release_pr: {"headRefName" => "release-v7.2.0"},
+      proposal_release: nil,
+      commits_since: 3
+    )
+
+    assert_equal :prepare, detector.next_step
+  end
+
   def test_returns_build_after_release_pr_is_merged_but_before_tag_exists
     detector = build_detector(last_tag: "v7.2.0", current_version: "7.2.1")
 
@@ -53,16 +73,19 @@ class StageDetectorTest < Minitest::Test
 
   private
 
-  def build_detector(current_branch: "main", last_tag: "v7.2.1", current_version: "7.2.1", release: nil, open_release_pr: nil, commits_since: 0, artifacts_present: true, prepare_checkpoint: false)
+  def build_detector(current_branch: "main", last_tag: "v7.2.1", current_version: "7.2.1", release: nil, open_release_pr: nil, commits_since: 0, artifacts_present: true, prepare_checkpoint: false, proposal_release: nil)
     git_repo = Object.new
     git_repo.define_singleton_method(:current_branch) { current_branch }
     git_repo.define_singleton_method(:last_tag) { last_tag }
     git_repo.define_singleton_method(:release_tag) { |version| "v#{version}" }
+    git_repo.define_singleton_method(:proposal_tag) { |version| "v#{version}-proposal" }
     git_repo.define_singleton_method(:commits_since) { |_tag| commits_since }
 
     github = Object.new
     github.define_singleton_method(:open_release_pr) { open_release_pr }
-    github.define_singleton_method(:release) { |_tag| release }
+    github.define_singleton_method(:release) do |tag|
+      tag.end_with?("-proposal") ? proposal_release : release
+    end
 
     tmp_dir = Pathname(Dir.mktmpdir)
     checkpoint_file = tmp_dir.join("prepare.json")
