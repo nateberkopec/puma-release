@@ -122,7 +122,8 @@ class PrepareTest < Minitest::Test
       events:,
       codename: nil,
       metadata_repo: "puma/puma",
-      history_file: Pathname("History.md")
+      history_file: Pathname("History.md"),
+      prepare_checkpoint_file: Pathname(Dir.mktmpdir).join("prepare.json")
     )
     context.define_singleton_method(:check_dependencies!) { |_git, _gh, _agent| }
     context.define_singleton_method(:announce_live_mode!) {}
