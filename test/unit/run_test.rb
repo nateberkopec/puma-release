@@ -15,6 +15,46 @@ class RunTest < Minitest::Test
     end
   end
 
+  def test_recovers_prepare_from_a_local_release_branch_without_an_open_pr
+    ui = FakeUI.new
+    context = OpenStruct.new(ui:)
+    run = PumaRelease::Commands::Run.allocate
+    run.instance_variable_set(:@context, context)
+
+    detector = Object.new
+    def detector.next_step = :recover_prepare
+
+    git_repo = Object.new
+    checkouts = []
+    git_repo.define_singleton_method(:release_branch_base) { "main" }
+    git_repo.define_singleton_method(:checkout_branch!) { |branch| checkouts << branch }
+
+    run.define_singleton_method(:stage_detector) { detector }
+    run.define_singleton_method(:git_repo) { git_repo }
+    run.define_singleton_method(:confirm_step) { |step| step == :prepare }
+    run.define_singleton_method(:run_step) { |step| step }
+
+    assert_equal :prepare, run.call
+    assert_equal ["Found a local release branch with no open PR. Switching back to main and retrying prepare."], ui.infos
+    assert_equal ["main"], checkouts
+  end
+
+  def test_reports_an_orphaned_release_branch_when_the_base_branch_is_unknown
+    ui = FakeUI.new
+    context = OpenStruct.new(ui:)
+    run = PumaRelease::Commands::Run.allocate
+    run.instance_variable_set(:@context, context)
+
+    detector = Object.new
+    def detector.next_step = :orphaned_release_branch
+
+    run.define_singleton_method(:stage_detector) { detector }
+    run.define_singleton_method(:confirm_step) { flunk "confirm_step should not be called for an orphaned release branch" }
+
+    assert_equal :orphaned_release_branch, run.call
+    assert_equal ["Found a local release branch with no open PR, but puma-release does not know which base branch to return to. Switch back to your base branch and rerun with --base-branch if needed."], ui.infos
+  end
+
   def test_returns_complete_without_prompt_when_release_is_already_complete
     ui = FakeUI.new
     context = OpenStruct.new(ui:)

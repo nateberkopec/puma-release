@@ -12,6 +12,8 @@ module PumaRelease
     end
 
     def next_step
+      return :recover_prepare if recoverable_orphaned_release_branch?
+      return :orphaned_release_branch if orphaned_release_branch?
       return :wait_for_merge if waiting_on_release_pr?
       return :build if release_version_ahead_of_tag?
       return :build if build_artifacts_missing_for_pending_release?
@@ -25,9 +27,17 @@ module PumaRelease
     private
 
     def waiting_on_release_pr?
-      return true if git_repo.current_branch.start_with?("release-v")
-
       !github.open_release_pr.nil?
+    end
+
+    def recoverable_orphaned_release_branch?
+      orphaned_release_branch? && !git_repo.release_branch_base.empty?
+    end
+
+    def orphaned_release_branch?
+      git_repo.current_branch.start_with?("release-v") &&
+        github.open_release_pr.nil? &&
+        !release_version_ahead_of_tag?
     end
 
     def release_version_ahead_of_tag?
