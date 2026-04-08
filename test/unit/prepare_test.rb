@@ -147,7 +147,10 @@ class PrepareTest < Minitest::Test
     repo_files.define_singleton_method(:extract_history_section) { |_version| "* Changes\n  * Example ([#1])" }
 
     github = Object.new
-    github.define_singleton_method(:create_release_pr) { |_title, _branch, body:| sequence << [:create_release_pr, body]; "https://example.test/pr" }
+    github.define_singleton_method(:create_release_pr) do |_title, _branch, body:|
+      sequence << [:create_release_pr, body]
+      "https://example.test/pr"
+    end
     github.define_singleton_method(:comment_on_pr) { |_url, _body| sequence << :comment_on_pr }
     github.define_singleton_method(:update_pr_body) { |_url, _body| sequence << :update_pr_body }
     github.define_singleton_method(:release) { |_tag| nil }
