@@ -73,6 +73,11 @@ module PumaRelease
       run_git!("checkout", branch)
     end
 
+    def update_local_branch!(branch = context.base_branch)
+      checkout_branch!(branch)
+      run_git!("pull", "--ff-only", metadata_remote, branch)
+    end
+
     def release_branch_base(branch = current_branch)
       shell.optional_output("git", "config", "--get", release_branch_base_config_key(branch))
     end

@@ -139,6 +139,24 @@ class GitRepoTest < Minitest::Test
     assert_equal "main", repo.release_branch_base("release-v7.3.0")
   end
 
+  def test_update_local_branch_checks_out_the_branch_and_fast_forwards_from_metadata_remote
+    shell = FakeShell.new(
+      {
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"] => "release-v7.3.0\n",
+        ["git", "remote"] => "origin\nupstream\n",
+        ["git", "remote", "get-url", "origin"] => "git@github.com:nateberkopec/puma.git\n",
+        ["git", "remote", "get-url", "upstream"] => "https://github.com/puma/puma.git\n"
+      }
+    )
+
+    context = OpenStruct.new(shell:, release_repo: "nateberkopec/puma", metadata_repo: "puma/puma", base_branch: "main")
+
+    PumaRelease::GitRepo.new(context).update_local_branch!
+
+    assert_includes shell.commands, ["git", "checkout", "main"]
+    assert_includes shell.commands, ["git", "pull", "--ff-only", "upstream", "main"]
+  end
+
   def test_commit_release_creates_a_signed_commit
     temp_repo do |repo|
       version_file = repo.join("lib/puma/const.rb")
