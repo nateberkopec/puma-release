@@ -15,6 +15,7 @@ module PumaRelease
     def next_step
       return :recover_prepare if recoverable_orphaned_release_branch?
       return :orphaned_release_branch if orphaned_release_branch?
+      return :prepare_follow_up if prepare_follow_up_pending?
       return :wait_for_merge if waiting_on_release_pr?
       return :build if release_version_ahead_of_tag?
       return :build if build_artifacts_missing_for_pending_release?
@@ -30,7 +31,24 @@ module PumaRelease
     private
 
     def waiting_on_release_pr?
-      !github.open_release_pr.nil?
+      return true if git_repo.current_branch.start_with?("release-v")
+
+      release_pr_in_flight?
+    end
+
+    def release_pr_in_flight?
+      pr = open_release_pr
+      return false unless pr
+
+      version = release_pr_version(pr)
+      return false unless version
+
+      proposal_release = github.release(git_repo.proposal_tag(version))
+      proposal_release && proposal_release.fetch("targetCommitish", "") == pr.fetch("headRefName", "")
+    end
+
+    def prepare_follow_up_pending?
+      !open_release_pr.nil? && context.prepare_checkpoint_file.file?
     end
 
     def recoverable_orphaned_release_branch?
@@ -82,6 +100,17 @@ module PumaRelease
 
       proposal_tag = git_repo.proposal_tag(repo_files.current_version)
       github.release(proposal_tag) || !git_repo.remote_tag_sha(proposal_tag).empty?
+    end
+
+    def release_pr_version(pr)
+      branch = pr.fetch("headRefName", "")
+      branch.delete_prefix("release-v") if branch.start_with?("release-v")
+    end
+
+    def open_release_pr
+      return @open_release_pr if defined?(@open_release_pr)
+
+      @open_release_pr = github.open_release_pr
     end
 
     def current_release

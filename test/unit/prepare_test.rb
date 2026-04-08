@@ -122,7 +122,8 @@ class PrepareTest < Minitest::Test
       events:,
       codename: nil,
       metadata_repo: "puma/puma",
-      history_file: Pathname("History.md")
+      history_file: Pathname("History.md"),
+      prepare_checkpoint_file: Pathname(Dir.mktmpdir).join("prepare.json")
     )
     context.define_singleton_method(:check_dependencies!) { |_git, _gh, _agent| }
     context.define_singleton_method(:announce_live_mode!) {}
@@ -195,6 +196,61 @@ class PrepareTest < Minitest::Test
     refute_nil update_version_index
     assert_operator checkout_index, :<, prepend_index
     assert_operator checkout_index, :<, update_version_index
+  end
+
+  def test_resume_follow_up_uses_the_prepare_checkpoint_to_finish_release_setup
+    Dir.mktmpdir do |dir|
+      checkpoint_file = Pathname(dir).join("prepare.json")
+      checkpoint_file.write(
+        JSON.pretty_generate(
+          {
+            "branch" => "release-v7.3.0",
+            "compare_url" => "https://example.test/compare",
+            "pr_comment" => "checkpoint comment",
+            "release_body" => "* Features\n  * Example ([#1])",
+            "release_title" => "v7.3.0 - Example",
+            "version" => "7.3.0"
+          }
+        )
+      )
+
+      ui = FakeUI.new
+      context = OpenStruct.new(ui:, prepare_checkpoint_file: checkpoint_file)
+      context.define_singleton_method(:check_dependencies!) { |_gh| }
+      context.define_singleton_method(:announce_live_mode!) {}
+      context.define_singleton_method(:ensure_release_writes_allowed!) {}
+
+      git_repo = Object.new
+      git_repo.define_singleton_method(:proposal_tag) { |_version| "v7.3.0-proposal" }
+
+      calls = []
+      github = Object.new
+      github.define_singleton_method(:open_release_pr) { {"number" => 7, "url" => "https://example.test/pr/7", "headRefName" => "release-v7.3.0"} }
+      github.define_singleton_method(:pr_comments) { |_number| [] }
+      github.define_singleton_method(:comment_on_pr) { |url, body| calls << [:comment_on_pr, url, body] }
+      github.define_singleton_method(:release) { |_tag| nil }
+      github.define_singleton_method(:create_release) do |tag, body, title:, draft:, target:|
+        calls << [:create_release, tag, body, title, draft, target]
+        {"name" => title, "body" => body, "targetCommitish" => target, "url" => "https://example.test/release"}
+      end
+      github.define_singleton_method(:edit_release_target) { |_tag, _target| flunk "edit_release_target should not be called when the target already matches" }
+      github.define_singleton_method(:edit_release_title) { |_tag, _title| flunk "edit_release_title should not be called when the title already matches" }
+      github.define_singleton_method(:edit_release_notes) { |_tag, _body| flunk "edit_release_notes should not be called when the notes already match" }
+      github.define_singleton_method(:update_pr_body) { |url, body| calls << [:update_pr_body, url, body] }
+
+      prepare = PumaRelease::Commands::Prepare.allocate
+      prepare.instance_variable_set(:@context, context)
+      prepare.instance_variable_set(:@git_repo, git_repo)
+      prepare.instance_variable_set(:@repo_files, Object.new)
+      prepare.instance_variable_set(:@github, github)
+
+      assert_equal :wait_for_merge, prepare.resume_follow_up
+      assert_includes calls, [:comment_on_pr, "https://example.test/pr/7", "checkpoint comment"]
+      assert_includes calls, [:create_release, "v7.3.0-proposal", "* Features\n  * Example ([#1])", "v7.3.0 - Example", true, "release-v7.3.0"]
+      assert_includes calls, [:update_pr_body, "https://example.test/pr/7", "https://example.test/compare\n\nhttps://example.test/release"]
+      refute checkpoint_file.exist?
+      assert_includes ui.infos, "Resumed release PR follow-up: https://example.test/pr/7"
+    end
   end
 
   def test_show_version_recommendation_prints_reasoning_and_breaking_changes
