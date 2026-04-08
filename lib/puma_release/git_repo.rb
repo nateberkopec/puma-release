@@ -58,7 +58,10 @@ module PumaRelease
     def proposal_tag(version) = "#{release_tag(version)}-proposal"
 
     def checkout_release_branch!(branch)
-      run_git!("checkout", "-b", branch)
+      return if current_branch == branch
+
+      command = local_branch?(branch) ? ["checkout", branch] : ["checkout", "-b", branch]
+      run_git!(*command)
     end
 
     def commit_release!(version, extra_files: [])
@@ -169,6 +172,10 @@ module PumaRelease
 
     def remote_target_for(repo)
       remote_name_for(repo) || github_url_for(repo)
+    end
+
+    def local_branch?(branch)
+      shell.run("git", "show-ref", "--verify", "--quiet", "refs/heads/#{branch}", allow_failure: true).success?
     end
 
     def remote_name_for(repo)
