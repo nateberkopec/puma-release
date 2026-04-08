@@ -23,7 +23,7 @@ module PumaRelease
         last_tag = git_repo.last_tag
         context.ui.info("Last release tag: #{last_tag}")
         release_range = ReleaseRange.new(context, last_tag)
-        recommendation = VersionRecommender.new(context, release_range).call
+        recommendation = recommend_version(release_range)
         bump_type = recommendation.fetch("bump_type")
         current_version = repo_files.current_version
         new_version = git_repo.bump_version(current_version, bump_type)
@@ -33,14 +33,14 @@ module PumaRelease
         earner = show_codename_earner(last_tag, bump_type)
         changelog = prepare_changelog(release_range, new_version, last_tag)
         context.ui.info("Generating link references...")
-        refs = LinkReferenceBuilder.new(context).build(changelog)
+        refs = build_link_references(changelog)
+
+        branch = "release-v#{new_version}"
+        git_repo.checkout_release_branch!(branch)
         repo_files.prepend_history_section!(new_version, changelog, refs)
         repo_files.update_version!(new_version, bump_type, codename: context.codename)
         upgrade_guide_path = write_upgrade_guide(release_range, new_version, recommendation, bump_type)
         security_file = update_security_policy(new_version, bump_type)
-
-        branch = "release-v#{new_version}"
-        git_repo.checkout_release_branch!(branch)
         git_repo.commit_release!(new_version, extra_files: [*Array(upgrade_guide_path), *Array(security_file)])
         git_repo.push_branch!(branch)
 
@@ -69,6 +69,14 @@ module PumaRelease
       end
 
       def ci_checker = CiChecker.new(context)
+
+      def recommend_version(release_range)
+        VersionRecommender.new(context, release_range).call
+      end
+
+      def build_link_references(changelog)
+        LinkReferenceBuilder.new(context).build(changelog)
+      end
 
       def show_codename_earner(last_tag, bump_type)
         return nil if bump_type == "patch"
