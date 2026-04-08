@@ -89,6 +89,32 @@ class GitRepoTest < Minitest::Test
     assert_includes shell.commands, ["git", "fetch", "upstream", "--quiet"]
   end
 
+  def test_checkout_release_branch_reuses_an_existing_local_branch
+    shell = FakeShell.new(
+      {
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"] => "main\n",
+        ["git", "show-ref", "--verify", "--quiet", "refs/heads/release-v7.3.0"] => FakeShell::Result.new(stdout: "", stderr: "", success?: true, exitstatus: 0)
+      }
+    )
+
+    PumaRelease::GitRepo.new(OpenStruct.new(shell:)).checkout_release_branch!("release-v7.3.0")
+
+    assert_includes shell.commands, ["git", "checkout", "release-v7.3.0"]
+    refute_includes shell.commands, ["git", "checkout", "-b", "release-v7.3.0"]
+  end
+
+  def test_checkout_release_branch_is_a_no_op_when_already_on_the_release_branch
+    shell = FakeShell.new(
+      {
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"] => "release-v7.3.0\n"
+      }
+    )
+
+    PumaRelease::GitRepo.new(OpenStruct.new(shell:)).checkout_release_branch!("release-v7.3.0")
+
+    assert_equal [["git", "rev-parse", "--abbrev-ref", "HEAD"]], shell.commands
+  end
+
   def test_commit_release_creates_a_signed_commit
     temp_repo do |repo|
       version_file = repo.join("lib/puma/const.rb")
