@@ -2,19 +2,21 @@
 
 module PumaRelease
   class StageDetector
-    attr_reader :context, :git_repo, :repo_files, :github
+    attr_reader :context, :git_repo, :repo_files, :github, :rubygems
 
-    def initialize(context, git_repo: GitRepo.new(context), repo_files: RepoFiles.new(context), github: GitHubClient.new(context))
+    def initialize(context, git_repo: GitRepo.new(context), repo_files: RepoFiles.new(context), github: GitHubClient.new(context), rubygems: RubyGemsClient.new(context))
       @context = context
       @git_repo = git_repo
       @repo_files = repo_files
       @github = github
+      @rubygems = rubygems
     end
 
     def next_step
       return :wait_for_merge if waiting_on_release_pr?
       return :build if release_version_ahead_of_tag?
       return :build if build_artifacts_missing_for_pending_release?
+      return :wait_for_rubygems if waiting_for_rubygems?
       return :github if github_release_pending?
       return :github if github_release_missing_for_current_tag?
       return :complete if no_new_commits_since_last_release?
@@ -45,6 +47,14 @@ module PumaRelease
       return false if release_complete?
 
       !build_artifacts_present? && (current_release.nil? || github_release_pending?)
+    end
+
+    def waiting_for_rubygems?
+      return false if release_complete?
+      return false unless build_artifacts_present?
+      return false unless current_release.nil? || github_release_pending?
+
+      !rubygems.release_published?(repo_files.current_version)
     end
 
     def github_release_missing_for_current_tag?
