@@ -28,7 +28,18 @@ module PumaRelease
     def waiting_on_release_pr?
       return true if git_repo.current_branch.start_with?("release-v")
 
-      !open_release_pr.nil?
+      release_pr_in_flight?
+    end
+
+    def release_pr_in_flight?
+      pr = open_release_pr
+      return false unless pr
+
+      version = release_pr_version(pr)
+      return false unless version
+
+      proposal_release = github.release(git_repo.proposal_tag(version))
+      proposal_release && proposal_release.fetch("targetCommitish", "") == pr.fetch("headRefName", "")
     end
 
     def prepare_follow_up_pending?
@@ -58,6 +69,11 @@ module PumaRelease
 
     def no_new_commits_since_last_release?
       git_repo.commits_since(git_repo.last_tag).zero?
+    end
+
+    def release_pr_version(pr)
+      branch = pr.fetch("headRefName", "")
+      branch.delete_prefix("release-v") if branch.start_with?("release-v")
     end
 
     def open_release_pr
