@@ -65,6 +65,10 @@ module PumaRelease
       run_gh!("pr", "comment", pr_url, "--body", body)
     end
 
+    def merge_pr(pr)
+      run_gh!("pr", "merge", pr.to_s, "--repo", context.release_repo, "--merge", "--delete-branch=false")
+    end
+
     def pr_comments(number, repo: context.release_repo)
       json("gh", "api", "repos/#{repo}/issues/#{number}/comments") || []
     end

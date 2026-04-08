@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "shellwords"
+
 module PumaRelease
   module Commands
     class Run
@@ -26,6 +28,7 @@ module PumaRelease
 
       def stage_detector = StageDetector.new(context)
       def git_repo = GitRepo.new(context)
+      def github = GitHubClient.new(context)
       def prepare_command = Prepare.new(context)
 
       def confirm_step(step)
@@ -72,8 +75,53 @@ module PumaRelease
       end
 
       def wait_for_merge
-        context.ui.info("A release PR is already in flight. Merge it, update local #{context.base_branch}, and rerun puma-release.")
+        pr = github.open_release_pr
+        return merge_release_pr_and_continue(pr) if interactive_release_pr_merge?(pr)
+
+        context.ui.info(wait_for_merge_message(pr))
         :wait_for_merge
+      end
+
+      def wait_for_merge_message(pr)
+        url = pr&.fetch("url", "").to_s
+        message = "A release PR is already in flight"
+        message += " (#{url})" unless url.empty?
+        "#{message}. Merge it, update local #{context.base_branch}, and rerun puma-release."
+      end
+
+      def interactive_release_pr_merge?(pr)
+        return false unless pr
+        return false unless context.live?
+        return false unless context.release_repo == context.metadata_repo
+        return false if context.yes?
+        return false unless $stdin.tty?
+
+        prompt_to_merge_release_pr?(pr)
+      end
+
+      def prompt_to_merge_release_pr?(pr)
+        return gum_merge_prompt?(pr) if context.shell.available?("gum")
+
+        context.ui.confirm("Release PR ready: #{pr.fetch("url")}. Merge it now and continue?", default: false)
+      end
+
+      def gum_merge_prompt?(pr)
+        command = Shellwords.join([
+          "gum", "choose",
+          "--header", "Release PR ready: #{pr.fetch("url")}\nMerge it now and continue?",
+          "Merge release PR now",
+          "Not yet"
+        ])
+        result = context.shell.run("sh", "-lc", "#{command} < /dev/tty 2> /dev/tty", allow_failure: true)
+        result.success? && result.stdout.strip == "Merge release PR now"
+      end
+
+      def merge_release_pr_and_continue(pr)
+        context.ui.info("Merging release PR: #{pr.fetch("url")}")
+        github.merge_pr(pr.fetch("url"))
+        git_repo.update_local_branch!(context.base_branch)
+        context.ui.info("Merged release PR and updated local #{context.base_branch}. Continuing with the release.")
+        call
       end
     end
   end

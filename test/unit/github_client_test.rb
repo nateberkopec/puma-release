@@ -54,6 +54,22 @@ class GitHubClientTest < Minitest::Test
     assert_equal "https://github.com/puma/puma/pull/1", pr_url
   end
 
+  def test_merge_pr_confirms_before_writing
+    shell = FakeShell.new(
+      {
+        ["gh", "pr", "merge", "https://github.com/puma/puma/pull/1", "--repo", "puma/puma", "--merge", "--delete-branch=false"] => FakeShell::Result.new(stdout: "", stderr: "", success?: true, exitstatus: 0)
+      }
+    )
+
+    confirmations = []
+    context = OpenStruct.new(shell:, release_repo: "puma/puma")
+    context.define_singleton_method(:confirm_live_gh_command!) { |*command| confirmations << command }
+
+    PumaRelease::GitHubClient.new(context).merge_pr("https://github.com/puma/puma/pull/1")
+
+    assert_equal [["gh", "pr", "merge", "https://github.com/puma/puma/pull/1", "--repo", "puma/puma", "--merge", "--delete-branch=false"]], confirmations
+  end
+
   def test_retag_release_updates_the_release_tag_name_via_api
     shell = FakeShell.new(
       {
