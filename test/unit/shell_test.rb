@@ -21,8 +21,8 @@ class ShellTest < Minitest::Test
     end
 
     assert_equal "ab", chunks.join
-    assert_operator times.first, :<, 0.15
-    assert_operator times.last, :>=, 0.15
+    assert_operator times.first, :<, 0.18
+    assert_operator times.last, :>=, 0.18
   ensure
     $stdout = original_stdout
   end
