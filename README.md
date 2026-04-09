@@ -65,9 +65,9 @@ puma-release [options] [command]
 
 | Command | What it does |
 |---------|-------------|
-| `prepare` | Verifies checkout, recommends version, updates `History.md` and `lib/puma/const.rb`, opens release PR, creates draft GitHub release on a `vX.Y.Z-proposal` tag |
+| `prepare` | Verifies checkout, recommends version, updates `History.md` and `lib/puma/const.rb`, and opens the release PR |
 | `build` | Creates and pushes the final `vX.Y.Z` tag, builds MRI and JRuby gems |
-| `github` | Promotes draft release to final, uploads gem artifacts, publishes |
+| `github` | Creates or updates the GitHub release, uploads gem artifacts, and publishes |
 | `run` | Detects current stage and runs the right command |
 
 ## Options
@@ -101,7 +101,7 @@ Writes are fork-first by default:
 - Without `--live`, `puma-release` prefers your authenticated fork, then a non-upstream `origin`. If it can't find a plausible fork, it refuses writes unless you pass `--release-repo` or `--live`.
 - Writing to `puma/puma` requires `--live`.
 - In live mode, every mutating git command and GitHub write shows the exact command and asks for confirmation unless you pass `--yes`.
-- `prepare` uses a `vX.Y.Z-proposal` tag for the draft; the real `vX.Y.Z` tag is only created during `build`.
+- The real `vX.Y.Z` tag is only created during `build`.
 
 ## Development
 

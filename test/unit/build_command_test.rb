@@ -3,21 +3,28 @@
 require_relative "../test_helper"
 
 class BuildCommandTest < Minitest::Test
-  def test_sync_release_target_to_tag_is_a_no_op_when_release_is_missing
-    git_repo = Object.new
-    git_repo.define_singleton_method(:local_tag_sha) { |_tag| "abc123" }
-
-    github = Object.new
+  def test_checks_git_and_bundle_before_building
     calls = []
-    github.define_singleton_method(:release) { |_tag| nil }
-    github.define_singleton_method(:edit_release_target) { |_tag, _sha| calls << :edit_release_target }
+    context = Object.new
+    context.define_singleton_method(:check_dependencies!) { |*commands| calls << commands }
+    context.define_singleton_method(:announce_live_mode!) {}
+    context.define_singleton_method(:ensure_release_writes_allowed!) {}
+
+    git_repo = Object.new
+    git_repo.define_singleton_method(:ensure_clean_base!) { calls << :clean_base }
+
+    repo_files = Object.new
+    repo_files.define_singleton_method(:current_version) { raise PumaRelease::Error, "stop" }
 
     command = PumaRelease::Commands::Build.allocate
+    command.instance_variable_set(:@context, context)
     command.instance_variable_set(:@git_repo, git_repo)
-    command.instance_variable_set(:@github, github)
+    command.instance_variable_set(:@repo_files, repo_files)
 
-    command.send(:sync_release_target_to_tag, "v7.2.0")
+    error = assert_raises(PumaRelease::Error) { command.call }
 
-    assert_empty calls
+    assert_equal "stop", error.message
+    assert_includes calls, ["git", "bundle"]
+    assert_includes calls, :clean_base
   end
 end

@@ -15,14 +15,8 @@ class StageDetectorTest < Minitest::Test
     assert_equal :orphaned_release_branch, detector.next_step
   end
 
-  def test_returns_prepare_follow_up_when_a_release_pr_is_open_and_the_prepare_checkpoint_exists
-    detector = build_detector(open_release_pr: {"headRefName" => "release-v7.2.1"}, prepare_checkpoint: true)
-
-    assert_equal :prepare_follow_up, detector.next_step
-  end
-
   def test_returns_wait_for_merge_on_release_branch_when_a_release_pr_is_open
-    detector = build_detector(current_branch: "release-v7.2.1", open_release_pr: {"headRefName" => "release-v7.2.1"}, proposal_release: {"targetCommitish" => "release-v7.2.1"})
+    detector = build_detector(current_branch: "release-v7.2.1", open_release_pr: {"headRefName" => "release-v7.2.1"})
 
     assert_equal :wait_for_merge, detector.next_step
   end
@@ -38,20 +32,22 @@ class StageDetectorTest < Minitest::Test
     assert_equal :recover_build, detector.next_step
   end
 
-  def test_returns_wait_for_merge_when_the_open_release_pr_has_a_matching_proposal_release
+  def test_returns_wait_for_merge_when_the_open_release_pr_targets_a_newer_version_than_the_last_tag
     detector = build_detector(
+      last_tag: "v7.2.0",
+      current_version: "7.2.0",
       open_release_pr: {"headRefName" => "release-v7.2.1"},
-      proposal_release: {"targetCommitish" => "release-v7.2.1"},
       commits_since: 3
     )
 
     assert_equal :wait_for_merge, detector.next_step
   end
 
-  def test_ignores_stale_release_prs_that_do_not_have_a_matching_proposal_release
+  def test_ignores_stale_release_prs_that_do_not_target_a_newer_version
     detector = build_detector(
+      last_tag: "v7.2.0",
+      current_version: "7.2.0",
       open_release_pr: {"headRefName" => "release-v7.2.0"},
-      proposal_release: nil,
       commits_since: 3
     )
 
@@ -66,12 +62,6 @@ class StageDetectorTest < Minitest::Test
 
   def test_returns_github_when_release_is_still_pending
     detector = build_detector(release: {"isDraft" => true, "assets" => []})
-
-    assert_equal :github, detector.next_step
-  end
-
-  def test_returns_github_when_the_final_release_is_published_but_proposal_cleanup_is_still_pending
-    detector = build_detector(release: published_release, commits_since: 0, proposal_release: {"url" => "https://example.test/proposal"})
 
     assert_equal :github, detector.next_step
   end
@@ -108,30 +98,23 @@ class StageDetectorTest < Minitest::Test
 
   private
 
-  def build_detector(current_branch: "main", last_tag: "v7.2.1", current_version: "7.2.1", release: nil, open_release_pr: nil, merged_release_pr: nil, commits_since: 0, artifacts_present: true, release_branch_base: "main", rubygems_published: true, prepare_checkpoint: false, proposal_release: nil, proposal_tag_sha: "")
+  def build_detector(current_branch: "main", last_tag: "v7.2.1", current_version: "7.2.1", release: nil, open_release_pr: nil, merged_release_pr: nil, commits_since: 0, artifacts_present: true, release_branch_base: "main", rubygems_published: true)
     git_repo = Object.new
     git_repo.define_singleton_method(:current_branch) { current_branch }
     git_repo.define_singleton_method(:last_tag) { last_tag }
     git_repo.define_singleton_method(:release_tag) { |version| "v#{version}" }
-    git_repo.define_singleton_method(:proposal_tag) { |version| "v#{version}-proposal" }
     git_repo.define_singleton_method(:commits_since) { |_tag| commits_since }
     git_repo.define_singleton_method(:release_branch_base) { release_branch_base }
-    git_repo.define_singleton_method(:remote_tag_sha) { |_tag| proposal_tag_sha }
 
     github = Object.new
     github.define_singleton_method(:open_release_pr) { open_release_pr }
     github.define_singleton_method(:merged_release_pr) { |_branch| merged_release_pr }
-    github.define_singleton_method(:release) do |tag|
-      tag.end_with?("-proposal") ? proposal_release : release
-    end
+    github.define_singleton_method(:release) { |_tag| release }
 
     rubygems = Object.new
     rubygems.define_singleton_method(:release_published?) { |_version| rubygems_published }
 
     tmp_dir = Pathname(Dir.mktmpdir)
-    checkpoint_file = tmp_dir.join("prepare.json")
-    checkpoint_file.write("{}") if prepare_checkpoint
-
     repo_dir = tmp_dir.join("repo")
     pkg_dir = repo_dir.join("pkg")
     pkg_dir.mkpath
@@ -141,7 +124,7 @@ class StageDetectorTest < Minitest::Test
     end
 
     PumaRelease::StageDetector.new(
-      OpenStruct.new(shell: FakeShell.new, prepare_checkpoint_file: checkpoint_file, repo_dir:),
+      OpenStruct.new(shell: FakeShell.new, repo_dir:),
       git_repo:,
       repo_files: OpenStruct.new(current_version:),
       github:,

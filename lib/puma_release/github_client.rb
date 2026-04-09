@@ -54,10 +54,6 @@ module PumaRelease
       ).strip
     end
 
-    def update_pr_body(pr_url, body)
-      run_gh!("pr", "edit", pr_url, "--body", body)
-    end
-
     def comment_on_pr(pr_url, body)
       run_gh!("pr", "comment", pr_url, "--body", body)
     end
@@ -66,39 +62,13 @@ module PumaRelease
       run_gh!("pr", "merge", pr.to_s, "--repo", context.release_repo, "--merge", "--delete-branch=false")
     end
 
-    def pr_comments(number, repo: context.release_repo)
-      json("gh", "api", "repos/#{repo}/issues/#{number}/comments") || []
-    end
-
     def release(tag)
       json("gh", "release", "view", tag, "--repo", context.release_repo, "--json", "tagName,name,isDraft,body,url,assets,targetCommitish")
     end
 
-    def retag_release(old_tag, new_tag, target: nil)
-      release_id = release_id(old_tag)
-      command = ["api", "-X", "PATCH", "repos/#{context.release_repo}/releases/#{release_id}", "-f", "tag_name=#{new_tag}"]
-      command += ["-f", "target_commitish=#{target}"] if target
-      run_gh!(*command)
-      release(new_tag)
-    end
-
-    def delete_release(tag, allow_failure: false)
-      release_id = release_id(tag, allow_failure:)
-      return false unless release_id
-
-      run_gh!("api", "-X", "DELETE", "repos/#{context.release_repo}/releases/#{release_id}", allow_failure:)
-      true
-    end
-
-    def delete_tag_ref(tag, allow_failure: false)
-      run_gh!("api", "-X", "DELETE", "repos/#{context.release_repo}/git/refs/tags/#{tag}", allow_failure:)
-      true
-    end
-
-    def create_release(tag, body, title: tag, draft: true, target: nil)
+    def create_release(tag, body, title: tag, draft: true)
       with_notes_file(body) do |path|
         command = ["release", "create", tag, "--repo", context.release_repo, "--title", title, "--notes-file", path]
-        command += ["--target", target] if target
         command << "--draft" if draft
         run_gh!(*command)
       end
@@ -166,14 +136,6 @@ module PumaRelease
       return prs.find { |pr| pr.fetch("headRefName", "") == branch } if branch
 
       prs.find { |pr| pr.fetch("headRefName", "").start_with?("release-v") }
-    end
-
-    def release_id(tag, allow_failure: false)
-      payload = json("gh", "api", "repos/#{context.release_repo}/releases/tags/#{tag}")
-      return payload&.fetch("id", nil) if payload
-      return nil if allow_failure
-
-      raise Error, "Could not find release for tag #{tag}"
     end
 
     def with_notes_file(body)

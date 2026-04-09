@@ -42,7 +42,7 @@ module PumaRelease
         "Usage: puma-release [options] [command]",
         "",
         "Commands:",
-        "  prepare   open the release PR and draft release",
+        "  prepare   open the release PR",
         "  build     tag the release and build both gem artifacts",
         "  github    publish the GitHub release and upload assets",
         "  run       detect the next step and run it (default)"

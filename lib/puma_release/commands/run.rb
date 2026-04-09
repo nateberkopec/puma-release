@@ -15,7 +15,6 @@ module PumaRelease
         step = stage_detector.next_step
         return recover_prepare if step == :recover_prepare
         return orphaned_release_branch if step == :orphaned_release_branch
-        return prepare_follow_up if step == :prepare_follow_up
         return recover_build if step == :recover_build
         return wait_for_rubygems if step == :wait_for_rubygems
         return wait_for_merge if step == :wait_for_merge
@@ -67,10 +66,6 @@ module PumaRelease
         context.ui.info("Found a merged release branch. Switching back to #{context.base_branch}, updating it, and continuing with build.")
         git_repo.update_local_branch!(context.base_branch)
         run_step(:build)
-      end
-
-      def prepare_follow_up
-        prepare_command.resume_follow_up
       end
 
       def wait_for_rubygems

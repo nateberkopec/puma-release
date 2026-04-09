@@ -22,8 +22,8 @@ module PumaRelease
       return build_with_local_jruby(version) if jruby_version.nil? && context.shell.available?("jruby")
       return false if jruby_version.nil?
 
-      context.ui.info("Building JRuby gem with mise and jruby@#{jruby_version}...")
-      context.shell.run("mise", "exec", "jruby@#{jruby_version}", "--", "bundle", "exec", "rake", "java", "gem")
+      context.ui.info("Building JRuby gem with mise and ruby@#{jruby_version}...")
+      context.shell.run("mise", "exec", "ruby@#{jruby_version}", "--", "bundle", "exec", "rake", "java", "gem")
       context.ui.info("Built: pkg/puma-#{version}-java.gem")
       true
     end
@@ -36,10 +36,10 @@ module PumaRelease
     end
 
     def latest_jruby_version
-      result = context.shell.run("mise", "latest", "jruby", allow_failure: true)
+      result = context.shell.run("mise", "latest", "ruby@jruby", allow_failure: true)
       return result.stdout.strip if result.success? && !result.stdout.strip.empty?
 
-      context.ui.warn("mise could not determine a JRuby version.")
+      context.ui.warn("mise could not determine a JRuby version via ruby@jruby.")
       nil
     end
   end

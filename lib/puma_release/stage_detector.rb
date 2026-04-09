@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "rubygems/version"
+
 module PumaRelease
   class StageDetector
     attr_reader :context, :git_repo, :repo_files, :github, :rubygems
@@ -15,7 +17,6 @@ module PumaRelease
     def next_step
       return :recover_prepare if recoverable_orphaned_release_branch?
       return :orphaned_release_branch if orphaned_release_branch?
-      return :prepare_follow_up if prepare_follow_up_pending?
       return :recover_build if recoverable_merged_release_branch?
       return :wait_for_merge if waiting_on_release_pr?
       return :build if release_version_ahead_of_tag?
@@ -23,7 +24,6 @@ module PumaRelease
       return :wait_for_rubygems if waiting_for_rubygems?
       return :github if github_release_pending?
       return :github if github_release_missing_for_current_tag?
-      return :github if proposal_cleanup_pending?
       return :complete if no_new_commits_since_last_release?
 
       :prepare
@@ -49,12 +49,7 @@ module PumaRelease
       version = release_pr_version(pr)
       return false unless version
 
-      proposal_release = github.release(git_repo.proposal_tag(version))
-      proposal_release && proposal_release.fetch("targetCommitish", "") == pr.fetch("headRefName", "")
-    end
-
-    def prepare_follow_up_pending?
-      !open_release_pr.nil? && context.prepare_checkpoint_file.file?
+      Gem::Version.new(version) > Gem::Version.new(git_repo.last_tag.delete_prefix("v"))
     end
 
     def recoverable_orphaned_release_branch?
@@ -70,7 +65,7 @@ module PumaRelease
 
     def orphaned_release_branch?
       git_repo.current_branch.start_with?("release-v") &&
-        github.open_release_pr.nil? &&
+        open_release_pr.nil? &&
         !release_version_ahead_of_tag?
     end
 
@@ -105,14 +100,6 @@ module PumaRelease
 
     def no_new_commits_since_last_release?
       git_repo.commits_since(git_repo.last_tag).zero?
-    end
-
-    def proposal_cleanup_pending?
-      return false unless no_new_commits_since_last_release?
-      return false unless current_release && !github_release_pending?
-
-      proposal_tag = git_repo.proposal_tag(repo_files.current_version)
-      github.release(proposal_tag) || !git_repo.remote_tag_sha(proposal_tag).empty?
     end
 
     def release_pr_version(pr)

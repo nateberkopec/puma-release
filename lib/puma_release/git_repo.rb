@@ -55,7 +55,6 @@ module PumaRelease
     end
 
     def release_tag(version) = "v#{version}"
-    def proposal_tag(version) = "#{release_tag(version)}-proposal"
 
     def checkout_release_branch!(branch, base_branch: nil)
       current = current_branch
