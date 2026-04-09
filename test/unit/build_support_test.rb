@@ -24,6 +24,7 @@ class BuildSupportTest < Minitest::Test
     shell = FakeShell.new(
       {
         ["mise", "latest", "ruby@jruby"] => FakeShell::Result.new(stdout: "jruby-10.0.4.0\n", stderr: "", success?: true, exitstatus: 0),
+        ["mise", "exec", "ruby@jruby-10.0.4.0", "--", "bundle", "check"] => FakeShell::Result.new(stdout: "", stderr: "", success?: true, exitstatus: 0),
         ["mise", "exec", "ruby@jruby-10.0.4.0", "--", "bundle", "exec", "rake", "java", "gem"] => FakeShell::Result.new(stdout: "", stderr: "", success?: true, exitstatus: 0)
       }
     )
@@ -32,15 +33,34 @@ class BuildSupportTest < Minitest::Test
 
     assert PumaRelease::BuildSupport.new(context).build_jruby_gem("8.0.0")
     assert_includes shell.commands, ["mise", "latest", "ruby@jruby"]
+    assert_includes shell.commands, ["mise", "exec", "ruby@jruby-10.0.4.0", "--", "bundle", "check"]
     assert_includes shell.commands, ["mise", "exec", "ruby@jruby-10.0.4.0", "--", "bundle", "exec", "rake", "java", "gem"]
+    assert_includes ui.infos, "Ensuring JRuby bundle is installed with mise and ruby@jruby-10.0.4.0..."
     assert_includes ui.infos, "Building JRuby gem with mise and ruby@jruby-10.0.4.0..."
     assert_includes ui.infos, "Built: pkg/puma-8.0.0-java.gem"
+  end
+
+  def test_build_jruby_gem_runs_bundle_install_when_mise_bundle_check_fails
+    shell = FakeShell.new(
+      {
+        ["mise", "latest", "ruby@jruby"] => FakeShell::Result.new(stdout: "jruby-10.0.4.0\n", stderr: "", success?: true, exitstatus: 0),
+        ["mise", "exec", "ruby@jruby-10.0.4.0", "--", "bundle", "check"] => FakeShell::Result.new(stdout: "", stderr: "missing gems", success?: false, exitstatus: 1),
+        ["mise", "exec", "ruby@jruby-10.0.4.0", "--", "bundle", "install"] => FakeShell::Result.new(stdout: "", stderr: "", success?: true, exitstatus: 0),
+        ["mise", "exec", "ruby@jruby-10.0.4.0", "--", "bundle", "exec", "rake", "java", "gem"] => FakeShell::Result.new(stdout: "", stderr: "", success?: true, exitstatus: 0)
+      }
+    )
+    ui = FakeUI.new
+    context = OpenStruct.new(shell:, ui:)
+
+    assert PumaRelease::BuildSupport.new(context).build_jruby_gem("8.0.0")
+    assert_includes shell.commands, ["mise", "exec", "ruby@jruby-10.0.4.0", "--", "bundle", "install"]
   end
 
   def test_build_jruby_gem_falls_back_to_local_jruby_when_mise_cannot_resolve_ruby_jruby
     shell = FakeShell.new(
       {
         ["mise", "latest", "ruby@jruby"] => FakeShell::Result.new(stdout: "", stderr: "nope", success?: false, exitstatus: 1),
+        ["jruby", "-S", "bundle", "check"] => FakeShell::Result.new(stdout: "", stderr: "", success?: true, exitstatus: 0),
         ["jruby", "-S", "bundle", "exec", "rake", "java", "gem"] => FakeShell::Result.new(stdout: "", stderr: "", success?: true, exitstatus: 0)
       }
     )
@@ -50,6 +70,7 @@ class BuildSupportTest < Minitest::Test
 
     assert PumaRelease::BuildSupport.new(context).build_jruby_gem("8.0.0")
     assert_includes ui.warnings, "mise could not determine a JRuby version via ruby@jruby."
+    assert_includes shell.commands, ["jruby", "-S", "bundle", "check"]
     assert_includes shell.commands, ["jruby", "-S", "bundle", "exec", "rake", "java", "gem"]
   end
 end
