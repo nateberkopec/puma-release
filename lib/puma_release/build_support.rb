@@ -2,6 +2,8 @@
 
 module PumaRelease
   class BuildSupport
+    MISE_JRUBY_JAVA_RUNTIME = "java@21"
+
     attr_reader :context
 
     def initialize(context)
@@ -22,12 +24,33 @@ module PumaRelease
       return build_with_local_jruby(version) if jruby_version.nil? && context.shell.available?("jruby")
       return false if jruby_version.nil?
 
-      context.ui.info("Ensuring JRuby bundle is installed with mise and ruby@#{jruby_version}...")
-      ensure_bundle_installed!("mise", "exec", "ruby@#{jruby_version}", "--", "bundle")
-      context.ui.info("Building JRuby gem with mise and ruby@#{jruby_version}...")
-      context.shell.run("mise", "exec", "ruby@#{jruby_version}", "--", "bundle", "exec", "rake", "java", "gem")
+      jruby_runtime = "ruby@#{jruby_version}"
+      ensure_mise_runtime_installed!(jruby_runtime)
+      context.ui.info("Ensuring JRuby bundle is installed with mise, #{MISE_JRUBY_JAVA_RUNTIME}, and #{jruby_runtime}...")
+      ensure_bundle_installed!("mise", "exec", MISE_JRUBY_JAVA_RUNTIME, jruby_runtime, "--", "bundle")
+      context.ui.info("Building JRuby gem with mise, #{MISE_JRUBY_JAVA_RUNTIME}, and #{jruby_runtime}...")
+      context.shell.run("mise", "exec", MISE_JRUBY_JAVA_RUNTIME, jruby_runtime, "--", "bundle", "exec", "rake", "java", "gem")
       context.ui.info("Built: pkg/puma-#{version}-java.gem")
       true
+    end
+
+    def ensure_mise_runtime_installed!(jruby_runtime)
+      context.ui.info("Ensuring #{MISE_JRUBY_JAVA_RUNTIME} is installed for JRuby...")
+      context.shell.run("mise", "install", MISE_JRUBY_JAVA_RUNTIME)
+      java_home = context.shell.output("mise", "where", MISE_JRUBY_JAVA_RUNTIME).strip
+      context.ui.info("Ensuring #{jruby_runtime} is installed with #{MISE_JRUBY_JAVA_RUNTIME}...")
+      context.shell.run("mise", "install", jruby_runtime, env_overrides: java_env_overrides(java_home))
+    end
+
+    def java_env_overrides(java_home)
+      path = [File.join(java_home, "bin"), shell_path].reject(&:empty?).join(File::PATH_SEPARATOR)
+      {"JAVA_HOME" => java_home, "PATH" => path}
+    end
+
+    def shell_path
+      return context.shell.env.fetch("PATH", "") if context.shell.respond_to?(:env)
+
+      ENV.fetch("PATH", "")
     end
 
     def build_with_local_jruby(version)
