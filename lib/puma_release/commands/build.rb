@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "shellwords"
+
 module PumaRelease
   module Commands
     class Build
@@ -26,11 +28,26 @@ module PumaRelease
         jruby_built = BuildSupport.new(context).build_jruby_gem(version)
         manual_jruby_instructions unless jruby_built
         context.events.publish(:checkpoint, kind: :wait_for_rubygems, version:, tag:)
-        context.ui.info("STOP: push both gems to RubyGems, then rerun puma-release.")
+        print_rubygems_push_instructions(version)
         :wait_for_rubygems
       end
 
       private
+
+      def print_rubygems_push_instructions(version)
+        context.ui.info("STOP: push both gems to RubyGems, then rerun puma-release.")
+        puts "Run these exact commands:"
+        puts "  #{rubygems_push_command(gem_path("puma-#{version}.gem"))}"
+        puts "  #{rubygems_push_command(gem_path("puma-#{version}-java.gem"))}"
+      end
+
+      def rubygems_push_command(path)
+        "fnox exec -- gem push --otp <INSERT_OTP_HERE> #{Shellwords.escape(path)}"
+      end
+
+      def gem_path(name)
+        File.expand_path(context.repo_dir.join("pkg", name).to_s)
+      end
 
       def manual_jruby_instructions
         context.ui.warn("JRuby gem was not built automatically.")
