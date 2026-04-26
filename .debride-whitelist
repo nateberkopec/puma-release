@@ -1,0 +1,8 @@
+# Version constant is used by the gemspec and at runtime.
+VERSION
+
+# Live-write confirmation is part of the release safety API.
+confirm_live_github_write!
+
+# Tag cleanup is intentionally available for release recovery.
+delete_local_tag!

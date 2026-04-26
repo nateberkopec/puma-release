@@ -1,0 +1,29 @@
+amends "package://github.com/jdx/hk/releases/download/v1.44.1/hk@1.44.1#/Config.pkl"
+
+hooks {
+  ["pre-commit"] {
+    steps {
+      ["lint"] {
+        check = "mise run lint:standard"
+      }
+      ["large-files"] {
+        check = "mise run lint:large-files"
+      }
+      ["complexity"] {
+        check = "mise run lint:complexity"
+      }
+      ["dead-code"] {
+        check = "mise run lint:dead-code"
+      }
+      ["flog"] {
+        check = "mise run lint:flog"
+      }
+      ["flay"] {
+        check = "mise run lint:flay"
+      }
+      ["test"] {
+        check = "mise run test"
+      }
+    }
+  }
+}

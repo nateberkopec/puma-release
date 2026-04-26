@@ -1,0 +1,5 @@
+AllCops:
+  NewCops: disable
+
+Metrics/PerceivedComplexity:
+  Max: 14

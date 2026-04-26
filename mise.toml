@@ -1,0 +1,69 @@
+[tools]
+ruby = "latest"
+communique = "0.1.9"
+hk = "latest"
+"github:aldanial/cloc" = "latest"
+
+[env]
+_.file = ".env"
+
+[deps.bundler]
+auto = true
+
+[deps.hk]
+sources = ["hk.pkl"]
+outputs = [".git/hooks/pre-commit"]
+run = "hk install"
+
+[tasks.test]
+description = "Run the test suite"
+sources = ["**/*.rb", "test/**/*", "lib/**/*"]
+run = "bundle exec rake test"
+
+[tasks.lint]
+description = "Run all lint checks"
+depends = ["lint:standard", "lint:large-files", "lint:complexity", "lint:dead-code", "lint:flog", "lint:flay"]
+
+[tasks."lint:standard"]
+description = "Run standardrb"
+sources = ["**/*.rb", ".standard.yml"]
+run = "bundle exec standardrb"
+
+[tasks."lint:large-files"]
+description = "Check staged files for large files"
+sources = [".git/index", "tools/check_large_files.rb"]
+run = "ruby tools/check_large_files.rb"
+
+[tasks."lint:complexity"]
+description = "Run Ruby complexity checks"
+sources = ["**/*.rb", ".rubocop.yml"]
+run = "bundle exec rubocop --only Metrics/PerceivedComplexity"
+
+[tasks."lint:dead-code"]
+description = "Check for dead Ruby methods"
+sources = ["**/*.rb", ".debride-whitelist", "tools/check_dead_code.rb"]
+run = "ruby tools/check_dead_code.rb"
+
+[tasks."lint:flog"]
+description = "Run flog complexity checks"
+sources = ["**/*.rb", "Rakefile"]
+run = "bundle exec rake flog"
+
+[tasks."lint:flay"]
+description = "Run flay duplication checks"
+sources = ["**/*.rb", "Rakefile"]
+run = "bundle exec rake flay"
+
+[tasks.build]
+description = "Build the gem"
+sources = ["lib/**/*", "exe/**/*", "README.md", "LICENSE", "puma-release.gemspec"]
+outputs = ["pkg/*.gem"]
+run = "gem build puma-release.gemspec --output pkg/puma-release-$(ruby -Ilib -e 'require \"puma_release/version\"; print PumaRelease::VERSION').gem"
+
+[tasks.release-test]
+description = "Run puma-release against your fork (nateberkopec/puma)"
+run = "exe/puma-release --release-repo nateberkopec/puma --repo-dir ../../upstream/puma"
+
+[tasks.release-live]
+description = "Run the real release against puma/puma"
+run = "exe/puma-release --live --repo-dir ../../upstream/puma"

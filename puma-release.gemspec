@@ -19,6 +19,9 @@ Gem::Specification.new do |spec|
   spec.executables = ["puma-release"]
   spec.require_paths = ["lib"]
 
+  spec.add_development_dependency "debride"
+  spec.add_development_dependency "flay"
+  spec.add_development_dependency "flog"
   spec.add_development_dependency "minitest"
   spec.add_development_dependency "ostruct"
   spec.add_development_dependency "rake"
