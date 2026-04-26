@@ -15,7 +15,8 @@ module PumaRelease
       live: false,
       debug: false,
       codename: nil,
-      base_branch: nil
+      base_branch: nil,
+      forced_version: nil
     }.freeze
 
     def self.parse(argv)
@@ -33,6 +34,7 @@ module PumaRelease
         opts.on("-y", "--yes", "Skip interactive confirmations") { options[:yes] = true }
         opts.on("--debug", "Enable debug logging") { options[:debug] = true }
         opts.on("--codename NAME", "Set the release codename directly") { |value| options[:codename] = value }
+        opts.on("--release-version VERSION", "Force the release version and skip AI version recommendation") { |value| options[:forced_version] = value }
         opts.on("--base-branch BRANCH", "Base branch for the release (default: current branch)") { |value| options[:base_branch] = value }
       end
 

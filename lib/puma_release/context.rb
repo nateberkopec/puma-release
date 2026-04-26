@@ -24,6 +24,7 @@ module PumaRelease
     def debug? = options.fetch(:debug, false) || env["DEBUG"] == "true"
     def changelog_backend = env.fetch("PUMA_RELEASE_CHANGELOG_BACKEND", options.fetch(:changelog_backend))
     def codename = options.fetch(:codename)
+    def forced_version = options.fetch(:forced_version, nil)
 
     def base_branch
       @base_branch ||= options[:base_branch] || inferred_base_branch

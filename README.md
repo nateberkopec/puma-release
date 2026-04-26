@@ -57,6 +57,14 @@ exe/puma-release --repo-dir /path/to/puma --base-branch 6-1-stable --live --rele
 exe/puma-release --repo-dir /path/to/puma --skip-ci-check prepare
 ```
 
+**Force the release version:**
+
+```sh
+exe/puma-release --repo-dir /path/to/puma --release-version 7.3.0 prepare
+```
+
+This skips the AI version bump recommendation and uses the exact version you provide.
+
 ## Commands
 
 ```sh
@@ -83,6 +91,7 @@ puma-release [options] [command]
 | `--allow-unknown-ci` | Continue when GitHub can't report CI state for `HEAD` |
 | `--changelog-backend auto\|agent\|communique` | Changelog generation backend |
 | `--codename NAME` | Set the release codename directly |
+| `--release-version VERSION` | Force the release version and skip the AI version recommendation |
 | `-y`, `--yes` | Skip interactive confirmations |
 | `--debug` | Enable debug logging |
 

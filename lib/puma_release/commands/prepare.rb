@@ -23,10 +23,10 @@ module PumaRelease
         last_tag = git_repo.last_tag
         context.ui.info("Last release tag: #{last_tag}")
         release_range = ReleaseRange.new(context, last_tag)
-        recommendation = recommend_version(release_range)
-        bump_type = recommendation.fetch("bump_type")
         current_version = repo_files.current_version
-        new_version = git_repo.bump_version(current_version, bump_type)
+        recommendation = version_recommendation(release_range, current_version)
+        bump_type = recommendation.fetch("bump_type")
+        new_version = recommendation.fetch("version") { git_repo.bump_version(current_version, bump_type) }
         context.ui.info("Version bump: #{current_version} -> #{new_version}")
         show_version_recommendation(recommendation)
 
@@ -68,6 +68,44 @@ module PumaRelease
 
       def recommend_version(release_range)
         VersionRecommender.new(context, release_range).call
+      end
+
+      def version_recommendation(release_range, current_version)
+        return recommend_version(release_range) unless context.forced_version
+
+        forced_version_recommendation(current_version)
+      end
+
+      def forced_version_recommendation(current_version)
+        forced_version = context.forced_version.strip
+        bump_type = infer_forced_bump_type(current_version, forced_version)
+        context.ui.warn("Skipping AI version recommendation because --release-version was set.")
+
+        {
+          "version" => forced_version,
+          "bump_type" => bump_type,
+          "reasoning_markdown" => "Release version was manually forced to `#{forced_version}` with `--release-version`.",
+          "breaking_changes" => [],
+          "manual_override" => true
+        }
+      end
+
+      def infer_forced_bump_type(current_version, forced_version)
+        current = parse_semver(current_version)
+        forced = parse_semver(forced_version)
+        raise Error, "Forced release version #{forced_version} must be greater than current version #{current_version}" unless (forced <=> current).positive?
+
+        return "major" if forced[0] > current[0]
+        return "minor" if forced[1] > current[1]
+
+        "patch"
+      end
+
+      def parse_semver(version)
+        match = version.match(/\A(\d+)\.(\d+)\.(\d+)\z/)
+        raise Error, "Release version must be in X.Y.Z format: #{version}" unless match
+
+        match.captures.map(&:to_i)
       end
 
       def build_link_references(changelog)
@@ -125,8 +163,7 @@ module PumaRelease
 
       def pr_comment(recommendation, earner)
         lines = [
-          context.comment_attribution(recommendation.fetch("model_name", context.comment_author_model_name)),
-          "",
+          *pr_comment_attribution(recommendation),
           "## Version bump recommendation",
           "",
           "Recommended bump: **#{recommendation.fetch("bump_type")}**",
@@ -135,7 +172,9 @@ module PumaRelease
         ]
 
         breaking_changes = recommendation.fetch("breaking_changes", [])
-        if breaking_changes.any?
+        if recommendation.fetch("manual_override", false)
+          lines += ["", "## Potential breaking changes", "", "_Skipped because the version was selected manually._"]
+        elsif breaking_changes.any?
           lines += ["", "## Potential breaking changes", ""]
           lines += breaking_changes.map { |item| "- #{item}" }
         else
@@ -145,6 +184,12 @@ module PumaRelease
         return lines.join("\n") unless earner
 
         [*lines, "", "## Codename", "", codename_message(earner)].join("\n")
+      end
+
+      def pr_comment_attribution(recommendation)
+        return [] if recommendation.fetch("manual_override", false)
+
+        [context.comment_attribution(recommendation.fetch("model_name", context.comment_author_model_name)), ""]
       end
 
       def codename_message(earner)

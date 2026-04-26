@@ -14,4 +14,10 @@ class OptionsTest < Minitest::Test
 
     assert_equal true, options.fetch(:skip_ci_check)
   end
+
+  def test_parse_sets_forced_release_version
+    options = PumaRelease::Options.parse(["--release-version", "7.3.0"])
+
+    assert_equal "7.3.0", options.fetch(:forced_version)
+  end
 end

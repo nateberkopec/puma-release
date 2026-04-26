@@ -91,6 +91,7 @@ class PrepareTest < Minitest::Test
       ui:,
       events:,
       codename: nil,
+      forced_version: nil,
       metadata_repo: "puma/puma"
     )
     context.define_singleton_method(:check_dependencies!) { |_git, _gh, _agent| }
@@ -158,6 +159,102 @@ class PrepareTest < Minitest::Test
     assert_operator checkout_index, :<, prepend_index
     assert_operator checkout_index, :<, update_version_index
     assert_operator pr_index, :<, comment_index
+  end
+
+  def test_forced_version_skips_version_recommendation
+    sequence = []
+    ui = FakeUI.new
+    events = Object.new
+    events.define_singleton_method(:publish) { |_name, _payload| }
+    context = OpenStruct.new(
+      ui:,
+      events:,
+      codename: "Forced Codename",
+      forced_version: "7.3.0",
+      metadata_repo: "puma/puma"
+    )
+    context.define_singleton_method(:check_dependencies!) { |_git, _gh, _agent| }
+    context.define_singleton_method(:announce_live_mode!) {}
+    context.define_singleton_method(:ensure_release_writes_allowed!) {}
+    context.define_singleton_method(:agent_binary) { "pi" }
+    context.define_singleton_method(:base_branch) { "main" }
+
+    git_repo = Object.new
+    git_repo.define_singleton_method(:ensure_clean_base!) { sequence << :ensure_clean_base }
+    git_repo.define_singleton_method(:last_tag) { "v7.2.0" }
+    git_repo.define_singleton_method(:bump_version) { |_current, _bump| flunk "bump_version should not be called for forced releases" }
+    git_repo.define_singleton_method(:checkout_release_branch!) { |branch, base_branch:| sequence << [:checkout_release_branch, branch, base_branch] }
+    git_repo.define_singleton_method(:commit_release!) { |_version, extra_files:| sequence << [:commit_release, extra_files] }
+    git_repo.define_singleton_method(:push_branch!) { |_branch| sequence << :push_branch }
+    git_repo.define_singleton_method(:head_sha) { "abc123" }
+    git_repo.define_singleton_method(:release_tag) { |version| "v#{version}" }
+
+    repo_files = Object.new
+    repo_files.define_singleton_method(:current_version) { "7.2.0" }
+    repo_files.define_singleton_method(:prepend_history_section!) { |_version, _changelog, _refs| sequence << :prepend_history_section }
+    repo_files.define_singleton_method(:update_version!) { |version, bump_type, codename:| sequence << [:update_version, version, bump_type, codename] }
+
+    github = Object.new
+    github.define_singleton_method(:create_release_pr) do |_title, branch, body:|
+      sequence << [:create_release_pr, branch, body]
+      "https://example.test/pr"
+    end
+    github.define_singleton_method(:comment_on_pr) { |_url, body| sequence << [:comment_on_pr, body] }
+
+    contributors = Object.new
+    contributors.define_singleton_method(:codename_earner) { |_tag| nil }
+
+    prepare = PumaRelease::Commands::Prepare.allocate
+    prepare.instance_variable_set(:@context, context)
+    prepare.instance_variable_set(:@git_repo, git_repo)
+    prepare.instance_variable_set(:@repo_files, repo_files)
+    prepare.instance_variable_set(:@github, github)
+    prepare.instance_variable_set(:@contributors, contributors)
+    prepare.define_singleton_method(:ensure_green_ci!) { sequence << :ensure_green_ci }
+    prepare.define_singleton_method(:recommend_version) { |_range| flunk "recommend_version should not be called for forced releases" }
+    prepare.define_singleton_method(:prepare_changelog) { |_range, _new_version, _last_tag| "* Changes\n  * Example ([#1])" }
+    prepare.define_singleton_method(:build_link_references) { |_changelog| "[#1]: https://example.test/pr/1\n" }
+    prepare.define_singleton_method(:write_upgrade_guide) { |_range, _new_version, _recommendation, _bump_type| nil }
+    prepare.define_singleton_method(:update_security_policy) { |_new_version, _bump_type| nil }
+
+    result = nil
+    capture_io { result = prepare.call }
+
+    assert_equal :wait_for_merge, result
+    assert_includes ui.warnings, "Skipping AI version recommendation because --release-version was set."
+    assert_includes sequence, [:checkout_release_branch, "release-v7.3.0", "main"]
+    assert_includes sequence, [:update_version, "7.3.0", "minor", "Forced Codename"]
+    assert_includes sequence, [:create_release_pr, "release-v7.3.0", "https://github.com/puma/puma/compare/v7.2.0...abc123"]
+    comment = sequence.find { |entry| entry.is_a?(Array) && entry.first == :comment_on_pr }.last
+    assert_includes comment, "Release version was manually forced to `7.3.0` with `--release-version`."
+    assert_includes comment, "_Skipped because the version was selected manually._"
+    refute_includes comment, "This comment was written by"
+  end
+
+  def test_forced_version_must_be_greater_than_current_version
+    ui = FakeUI.new
+    context = OpenStruct.new(ui:, forced_version: "7.2.0")
+    prepare = PumaRelease::Commands::Prepare.allocate
+    prepare.instance_variable_set(:@context, context)
+
+    error = assert_raises(PumaRelease::Error) do
+      prepare.send(:forced_version_recommendation, "7.2.0")
+    end
+
+    assert_equal "Forced release version 7.2.0 must be greater than current version 7.2.0", error.message
+  end
+
+  def test_forced_version_must_be_semver
+    ui = FakeUI.new
+    context = OpenStruct.new(ui:, forced_version: "7.3")
+    prepare = PumaRelease::Commands::Prepare.allocate
+    prepare.instance_variable_set(:@context, context)
+
+    error = assert_raises(PumaRelease::Error) do
+      prepare.send(:forced_version_recommendation, "7.2.0")
+    end
+
+    assert_equal "Release version must be in X.Y.Z format: 7.3", error.message
   end
 
   def test_show_version_recommendation_prints_reasoning_and_breaking_changes
