@@ -135,7 +135,17 @@ module PumaRelease
       prs = prs.uniq { |pr| pr.fetch("number", pr.fetch("url", pr.object_id)) }
       return prs.find { |pr| pr.fetch("headRefName", "") == branch } if branch
 
-      prs.find { |pr| pr.fetch("headRefName", "").start_with?("release-v") }
+      release_prs = prs.select { |pr| pr.fetch("headRefName", "").start_with?("release-v") }
+      base_branch = release_pr_base_branch
+      return release_prs.find { |pr| pr.fetch("baseRefName", "") == base_branch } if base_branch
+
+      release_prs.first
+    end
+
+    def release_pr_base_branch
+      return nil unless context.respond_to?(:base_branch)
+
+      context.base_branch.to_s.strip.then { |branch| branch.empty? ? nil : branch }
     end
 
     def with_notes_file(body)
