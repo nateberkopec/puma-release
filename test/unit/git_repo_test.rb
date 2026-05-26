@@ -34,6 +34,23 @@ class GitRepoTest < Minitest::Test
     assert_includes shell.commands, ["git", "push", "git@github.com:nateberkopec/puma.git", "release-v7.3.0"]
   end
 
+  def test_push_branch_can_skip_git_hooks
+    shell = FakeShell.new(
+      {
+        ["git", "remote"] => "origin\nmine\n",
+        ["git", "remote", "get-url", "origin"] => "https://github.com/puma/puma.git\n",
+        ["git", "remote", "get-url", "mine"] => "git@github.com:nateberkopec/puma.git\n"
+      }
+    )
+
+    context = OpenStruct.new(shell:, release_repo: "nateberkopec/puma", metadata_repo: "puma/puma")
+    context.define_singleton_method(:no_verify?) { true }
+
+    PumaRelease::GitRepo.new(context).push_branch!("release-v7.3.0")
+
+    assert_includes shell.commands, ["git", "push", "--no-verify", "-u", "mine", "release-v7.3.0"]
+  end
+
   def test_push_branch_confirms_the_full_git_command_in_live_mode
     shell = FakeShell.new(
       {
@@ -172,6 +189,22 @@ class GitRepoTest < Minitest::Test
     end
   end
 
+  def test_commit_release_can_skip_git_hooks
+    temp_repo do |repo|
+      version_file = repo.join("lib/puma/const.rb")
+      history_file = repo.join("History.md")
+      version_file.write("")
+      history_file.write("")
+      shell = FakeShell.new
+      context = OpenStruct.new(shell:, version_file:, history_file:)
+      context.define_singleton_method(:no_verify?) { true }
+
+      PumaRelease::GitRepo.new(context).commit_release!("7.3.0")
+
+      assert_includes shell.commands, ["git", "commit", "-S", "--no-verify", "-m", "Release v7.3.0"]
+    end
+  end
+
   def test_commit_release_pauses_before_a_gpg_sensitive_commit
     temp_repo do |repo|
       version_file = repo.join("lib/puma/const.rb")
@@ -206,6 +239,25 @@ class GitRepoTest < Minitest::Test
     PumaRelease::GitRepo.new(context).ensure_release_tag_pushed!("v7.3.0")
 
     assert_includes shell.commands, ["git", "tag", "-s", "v7.3.0", "-m", "Release v7.3.0"]
+  end
+
+  def test_ensure_release_tag_pushed_can_skip_git_hooks
+    shell = FakeShell.new(
+      {
+        ["git", "rev-parse", "HEAD"] => "abc123\n",
+        ["git", "ls-remote", "--tags", "mine", "refs/tags/v7.3.0", "refs/tags/v7.3.0^{}"] => "",
+        ["git", "remote"] => "origin\nmine\n",
+        ["git", "remote", "get-url", "origin"] => "https://github.com/puma/puma.git\n",
+        ["git", "remote", "get-url", "mine"] => "git@github.com:nateberkopec/puma.git\n"
+      }
+    )
+
+    context = OpenStruct.new(shell:, release_repo: "nateberkopec/puma", metadata_repo: "puma/puma")
+    context.define_singleton_method(:no_verify?) { true }
+
+    PumaRelease::GitRepo.new(context).ensure_release_tag_pushed!("v7.3.0")
+
+    assert_includes shell.commands, ["git", "push", "--no-verify", "mine", "v7.3.0"]
   end
 
   def test_remote_tag_sha_returns_the_peeled_commit_for_signed_tags

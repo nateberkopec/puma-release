@@ -93,6 +93,7 @@ puma-release [options] [command]
 | `--codename NAME` | Set the release codename directly |
 | `--release-version VERSION` | Force the release version and skip the AI version recommendation |
 | `-y`, `--yes` | Skip interactive confirmations |
+| `--no-verify` | Pass `--no-verify` to git commit/push commands |
 | `--debug` | Enable debug logging |
 
 ## Environment

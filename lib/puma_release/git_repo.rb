@@ -83,11 +83,15 @@ module PumaRelease
 
     def commit_release!(version, extra_files: [])
       run_git!("add", context.version_file.to_s, context.history_file.to_s, *extra_files.map(&:to_s))
-      run_git!("commit", "-S", "-m", "Release v#{version}")
+      command = ["commit", "-S"]
+      command << "--no-verify" if no_verify?
+      command += ["-m", "Release v#{version}"]
+      run_git!(*command)
     end
 
     def push_branch!(branch)
       command = ["push"]
+      command << "--no-verify" if no_verify?
       command << "-u" if release_remote
       command += [release_push_target, branch]
       run_git!(*command)
@@ -139,7 +143,10 @@ module PumaRelease
 
       raise Error, "Remote tag #{tag} already exists but does not match the local signed tag." unless remote_object.empty?
 
-      run_git!("push", release_push_target, tag)
+      command = ["push"]
+      command << "--no-verify" if no_verify?
+      command += [release_push_target, tag]
+      run_git!(*command)
     end
 
     def delete_local_tag!(tag, allow_failure: false)
@@ -185,6 +192,10 @@ module PumaRelease
 
     def release_push_target
       release_remote || github_url_for(context.release_repo)
+    end
+
+    def no_verify?
+      context.respond_to?(:no_verify?) && context.no_verify?
     end
 
     def remote_target_for(repo)

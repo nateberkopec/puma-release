@@ -12,6 +12,7 @@ module PumaRelease
       allow_unknown_ci: false,
       skip_ci_check: false,
       yes: false,
+      no_verify: false,
       live: false,
       debug: false,
       codename: nil,
@@ -32,6 +33,7 @@ module PumaRelease
         opts.on("--skip-ci-check", "Skip the CI check entirely during prepare") { options[:skip_ci_check] = true }
         opts.on("--changelog-backend NAME", "auto, agent, or communique") { |value| options[:changelog_backend] = value }
         opts.on("-y", "--yes", "Skip interactive confirmations") { options[:yes] = true }
+        opts.on("--no-verify", "Pass --no-verify to git commit/push commands") { options[:no_verify] = true }
         opts.on("--debug", "Enable debug logging") { options[:debug] = true }
         opts.on("--codename NAME", "Set the release codename directly") { |value| options[:codename] = value }
         opts.on("--release-version VERSION", "Force the release version and skip AI version recommendation") { |value| options[:forced_version] = value }

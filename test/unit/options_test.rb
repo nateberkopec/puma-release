@@ -15,6 +15,12 @@ class OptionsTest < Minitest::Test
     assert_equal true, options.fetch(:skip_ci_check)
   end
 
+  def test_parse_sets_no_verify_flag
+    options = PumaRelease::Options.parse(["--no-verify"])
+
+    assert_equal true, options.fetch(:no_verify)
+  end
+
   def test_parse_sets_forced_release_version
     options = PumaRelease::Options.parse(["--release-version", "7.3.0"])
 

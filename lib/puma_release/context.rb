@@ -20,6 +20,7 @@ module PumaRelease
     def allow_unknown_ci? = options.fetch(:allow_unknown_ci)
     def skip_ci_check? = options.fetch(:skip_ci_check, false)
     def yes? = options.fetch(:yes)
+    def no_verify? = options.fetch(:no_verify, false)
     def live? = options.fetch(:live, false)
     def debug? = options.fetch(:debug, false) || env["DEBUG"] == "true"
     def changelog_backend = env.fetch("PUMA_RELEASE_CHANGELOG_BACKEND", options.fetch(:changelog_backend))
