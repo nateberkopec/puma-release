@@ -11,7 +11,7 @@ module PumaRelease
     attr_reader :env, :cwd
 
     def initialize(env: ENV, cwd: Dir.pwd)
-      @env = env.to_h
+      @env = BundlerEnv.clean(env.to_h)
       @cwd = cwd
     end
 
