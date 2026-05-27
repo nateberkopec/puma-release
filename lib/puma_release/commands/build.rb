@@ -23,7 +23,9 @@ module PumaRelease
         context.ui.info("Ensuring tag #{tag} points at HEAD and is pushed...")
         git_repo.ensure_release_tag_pushed!(tag)
         context.ui.info("Building MRI gem...")
-        context.shell.run("bundle", "exec", "rake", "build")
+        TemporaryBundleLockfile.with_env do |env|
+          context.shell.run("bundle", "exec", "rake", "build", env_overrides: env)
+        end
         context.ui.info("Built: pkg/puma-#{version}.gem")
         jruby_built = BuildSupport.new(context).build_jruby_gem(version)
         manual_jruby_instructions unless jruby_built

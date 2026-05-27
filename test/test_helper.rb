@@ -9,21 +9,24 @@ module TestSupport
   class FakeShell
     Result = Data.define(:stdout, :stderr, :success?, :exitstatus)
 
-    attr_reader :commands
+    attr_reader :commands, :run_options
 
     def initialize(outputs = {})
       @outputs = outputs
       @commands = []
+      @run_options = []
     end
 
-    def output(*command, **_options)
+    def output(*command, **options)
       commands << command
+      run_options << [command, options]
       value = @outputs.fetch(command, "")
       value.respond_to?(:call) ? value.call : value
     end
 
-    def run(*command, allow_failure: false, **_options)
+    def run(*command, allow_failure: false, **options)
       commands << command
+      run_options << [command, {allow_failure:, **options}]
       value = @outputs.fetch(command, Result.new(stdout: "", stderr: "", success?: true, exitstatus: 0))
       value = value.call if value.respond_to?(:call)
       return value if value.success? || allow_failure

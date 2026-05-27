@@ -26,10 +26,12 @@ module PumaRelease
 
       jruby_runtime = "ruby@#{jruby_version}"
       ensure_mise_runtime_installed!(jruby_runtime)
-      context.ui.info("Ensuring JRuby bundle is installed with mise, #{MISE_JRUBY_JAVA_RUNTIME}, and #{jruby_runtime}...")
-      ensure_bundle_installed!("mise", "exec", MISE_JRUBY_JAVA_RUNTIME, jruby_runtime, "--", "bundle")
-      context.ui.info("Building JRuby gem with mise, #{MISE_JRUBY_JAVA_RUNTIME}, and #{jruby_runtime}...")
-      context.shell.run("mise", "exec", MISE_JRUBY_JAVA_RUNTIME, jruby_runtime, "--", "bundle", "exec", "rake", "java", "gem")
+      TemporaryBundleLockfile.with_env do |env|
+        context.ui.info("Ensuring JRuby bundle is installed with mise, #{MISE_JRUBY_JAVA_RUNTIME}, and #{jruby_runtime}...")
+        ensure_bundle_installed!("mise", "exec", MISE_JRUBY_JAVA_RUNTIME, jruby_runtime, "--", "bundle", env_overrides: env)
+        context.ui.info("Building JRuby gem with mise, #{MISE_JRUBY_JAVA_RUNTIME}, and #{jruby_runtime}...")
+        context.shell.run("mise", "exec", MISE_JRUBY_JAVA_RUNTIME, jruby_runtime, "--", "bundle", "exec", "rake", "java", "gem", env_overrides: env)
+      end
       context.ui.info("Built: pkg/puma-#{version}-java.gem")
       true
     end
@@ -54,10 +56,12 @@ module PumaRelease
     end
 
     def build_with_local_jruby(version)
-      context.ui.info("Ensuring JRuby bundle is installed with local jruby...")
-      ensure_bundle_installed!("jruby", "-S", "bundle")
-      context.ui.info("Building JRuby gem with local jruby...")
-      context.shell.run("jruby", "-S", "bundle", "exec", "rake", "java", "gem")
+      TemporaryBundleLockfile.with_env do |env|
+        context.ui.info("Ensuring JRuby bundle is installed with local jruby...")
+        ensure_bundle_installed!("jruby", "-S", "bundle", env_overrides: env)
+        context.ui.info("Building JRuby gem with local jruby...")
+        context.shell.run("jruby", "-S", "bundle", "exec", "rake", "java", "gem", env_overrides: env)
+      end
       context.ui.info("Built: pkg/puma-#{version}-java.gem")
       true
     end
@@ -70,11 +74,11 @@ module PumaRelease
       nil
     end
 
-    def ensure_bundle_installed!(*bundle_command)
-      check = context.shell.run(*bundle_command, "check", allow_failure: true)
+    def ensure_bundle_installed!(*bundle_command, env_overrides: {})
+      check = context.shell.run(*bundle_command, "check", allow_failure: true, env_overrides:)
       return if check.success?
 
-      context.shell.run(*bundle_command, "install")
+      context.shell.run(*bundle_command, "install", env_overrides:)
     end
   end
 end

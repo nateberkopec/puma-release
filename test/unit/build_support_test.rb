@@ -41,6 +41,7 @@ class BuildSupportTest < Minitest::Test
     assert_includes shell.commands, ["mise", "install", "ruby@jruby-10.0.4.0"]
     assert_includes shell.commands, ["mise", "exec", "java@21", "ruby@jruby-10.0.4.0", "--", "bundle", "check"]
     assert_includes shell.commands, ["mise", "exec", "java@21", "ruby@jruby-10.0.4.0", "--", "bundle", "exec", "rake", "java", "gem"]
+    assert_bundle_lockfile_is_temporary_for(shell, "mise")
     assert_operator shell.commands.index(["mise", "install", "java@21"]), :<, shell.commands.index(["mise", "install", "ruby@jruby-10.0.4.0"])
     assert_operator shell.commands.index(["mise", "install", "ruby@jruby-10.0.4.0"]), :<, shell.commands.index(["mise", "exec", "java@21", "ruby@jruby-10.0.4.0", "--", "bundle", "check"])
     assert_includes ui.infos, "Ensuring java@21 is installed for JRuby..."
@@ -67,6 +68,7 @@ class BuildSupportTest < Minitest::Test
 
     assert PumaRelease::BuildSupport.new(context).build_jruby_gem("8.0.0")
     assert_includes shell.commands, ["mise", "exec", "java@21", "ruby@jruby-10.0.4.0", "--", "bundle", "install"]
+    assert_bundle_lockfile_is_temporary_for(shell, "mise")
   end
 
   def test_build_jruby_gem_falls_back_to_local_jruby_when_mise_cannot_resolve_ruby_jruby
@@ -85,5 +87,19 @@ class BuildSupportTest < Minitest::Test
     assert_includes ui.warnings, "mise could not determine a JRuby version via ruby@jruby."
     assert_includes shell.commands, ["jruby", "-S", "bundle", "check"]
     assert_includes shell.commands, ["jruby", "-S", "bundle", "exec", "rake", "java", "gem"]
+    assert_bundle_lockfile_is_temporary_for(shell, "jruby")
+  end
+
+  private
+
+  def assert_bundle_lockfile_is_temporary_for(shell, executable)
+    lockfiles = shell.run_options.filter_map do |command, options|
+      next unless command.first == executable && command.include?("bundle")
+
+      options.fetch(:env_overrides, {}).fetch("BUNDLE_LOCKFILE")
+    end
+
+    assert_equal 1, lockfiles.uniq.size
+    assert_match(%r{/puma-release-bundle-lock}, lockfiles.first)
   end
 end

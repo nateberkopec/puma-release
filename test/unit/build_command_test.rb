@@ -76,6 +76,8 @@ class BuildCommandTest < Minitest::Test
       assert_equal :wait_for_rubygems, command.call
     end
 
+    build_options = shell.run_options.find { |command, _options| command == ["bundle", "exec", "rake", "build"] }.last
+    assert_match(%r{/puma-release-bundle-lock}, build_options.fetch(:env_overrides).fetch("BUNDLE_LOCKFILE"))
     assert_includes ui.infos, "STOP: push both gems to RubyGems, then rerun puma-release."
     assert_includes stdout, "Run these exact commands:\n"
     assert_includes stdout, "  gem push --otp <INSERT_OTP_HERE> /tmp/puma\\ checkout/pkg/puma-8.0.1.gem\n"
