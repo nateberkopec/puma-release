@@ -42,7 +42,7 @@ module PumaRelease
       end
 
       def rubygems_push_command(path)
-        "fnox exec -- gem push --otp <INSERT_OTP_HERE> #{Shellwords.escape(path)}"
+        "gem push --otp <INSERT_OTP_HERE> #{Shellwords.escape(path)}"
       end
 
       def gem_path(name)
