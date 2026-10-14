@@ -43,7 +43,7 @@ class BuildCommandTest < Minitest::Test
     assert_includes calls, :clean_base
   end
 
-  def test_prints_exact_fnox_gem_push_commands_after_building
+  def test_prints_exact_gem_push_commands_after_building
     context = Object.new
     ui = FakeUI.new
     shell = FakeShell.new
@@ -78,8 +78,8 @@ class BuildCommandTest < Minitest::Test
 
     assert_includes ui.infos, "STOP: push both gems to RubyGems, then rerun puma-release."
     assert_includes stdout, "Run these exact commands:\n"
-    assert_includes stdout, "  fnox exec -- gem push --otp <INSERT_OTP_HERE> /tmp/puma\\ checkout/pkg/puma-8.0.1.gem\n"
-    assert_includes stdout, "  fnox exec -- gem push --otp <INSERT_OTP_HERE> /tmp/puma\\ checkout/pkg/puma-8.0.1-java.gem\n"
+    assert_includes stdout, "  gem push --otp <INSERT_OTP_HERE> /tmp/puma\\ checkout/pkg/puma-8.0.1.gem\n"
+    assert_includes stdout, "  gem push --otp <INSERT_OTP_HERE> /tmp/puma\\ checkout/pkg/puma-8.0.1-java.gem\n"
     assert_equal [[:checkpoint, {kind: :wait_for_rubygems, version: "8.0.1", tag: "v8.0.1"}]], published_events
   end
 end
