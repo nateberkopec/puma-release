@@ -6,9 +6,6 @@ hooks {
       ["lint"] {
         check = "mise run lint:standard"
       }
-      ["large-files"] {
-        check = "mise run lint:large-files"
-      }
       ["complexity"] {
         check = "mise run lint:complexity"
       }

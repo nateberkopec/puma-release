@@ -1,1 +1,0 @@
-/Users/nateberkopec/.pi/agent/skills/claude/dev-env-setup/scripts/check_large_files.rb

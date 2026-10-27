@@ -22,17 +22,12 @@ run = "bundle exec rake test"
 
 [tasks.lint]
 description = "Run all lint checks"
-depends = ["lint:standard", "lint:large-files", "lint:complexity", "lint:dead-code", "lint:flog", "lint:flay"]
+depends = ["lint:standard", "lint:complexity", "lint:dead-code", "lint:flog", "lint:flay"]
 
 [tasks."lint:standard"]
 description = "Run standardrb"
 sources = ["**/*.rb", ".standard.yml"]
 run = "bundle exec standardrb"
-
-[tasks."lint:large-files"]
-description = "Check staged files for large files"
-sources = [".git/index", "tools/check_large_files.rb"]
-run = "ruby tools/check_large_files.rb"
 
 [tasks."lint:complexity"]
 description = "Run Ruby complexity checks"
